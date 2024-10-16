@@ -1,5 +1,53 @@
 #include "imports/stdlib.fc";
+#include "imports/op-codes.fc";
+
+const int week = 60 * 60 * 24 * 7; ;; week in seconds
+
+(int, int, slice, int, slice) load_data() inline {
+    slice ds = get_data().begin_parse();
+    return (ds~load_uint(64), ds~load_uint(64), ds~load_msg_addr(), ds~load_uint(64), ds~load_msg_addr());
+}
+
+() save_data(int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address) impure inline {
+    set_data(
+        begin_cell()
+        .store_uint(deposit_timestamp, 64)
+        .store_uint(unlock_timestamp, 64)
+        .store_slice(admin_address)
+        .store_uint(balance, 64)
+        .store_slice(main_sc_address)
+        .end_cell()
+    );
+}
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    ;; ignore bounced messages
+    if (flags & 1) {
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+    (int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address) = load_data();
+    if (op == op::withdraw) {
+        throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
+        throw_if(err::lack_of_unlock, unlock_timestamp == 0);
+        int unlock_timestamp = now() + week;
+        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address); ;; set unlock_timestamp
+        return ();
+    }
+    ;; if wrong op code
+    throw(err::unknown_op_code);
+}
 
+
+(int, int, slice, int, slice) get_user_data() method_id {
+    return load_data();
+}
+
+int get_unlock_timestamp() method_id {
+    var (_, unlock_timestamp, _, _, _) = load_data();
+    return unlock_timestamp;
 }
