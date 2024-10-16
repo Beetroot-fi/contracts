@@ -26,7 +26,7 @@
                                 .store_uint(0, 1)
                                 .end_cell();
     slice mint_token_body = begin_cell()
-                            .store_uint(op::mint, 32)
+                            .store_uint(op::mint_token, 32)
                             .store_uint(query_id, 64)
                             .store_slice(owner_address)
                             .store_coins(20000000) ;; 0.02 tons
