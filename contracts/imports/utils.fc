@@ -1,0 +1,26 @@
+int workchain() asm "0 PUSHINT";
+
+cell calculate_user_sc_state_init(cell user_sc_code, int deposit_timestamp, int unlock_timestamp, int balance, slice admin_address, slice main_sc_address) inline {
+    cell user_sc_data = begin_cell()
+                        .store_uint(deposit_timestamp, 64)
+                        .store_uint(unlock_timestamp, 64)
+                        .store_slice(admin_address)
+                        .store_uint(balance, 64)
+                        .store_slice(main_sc_address)
+                        .end_cell();
+    
+    return begin_cell()
+            .store_uint(6, 5)
+            .store_ref(user_sc_code)
+            .store_ref(user_sc_data)
+            .end_cell();
+}
+
+slice calculate_sc_address(cell state_init) inline {
+    return begin_cell()
+            .store_uint(4, 3)
+            .store_int(workchain(), 8)
+            .store_uint(cell_hash(state_init), 256)
+            .end_cell()
+            .begin_parse();
+}

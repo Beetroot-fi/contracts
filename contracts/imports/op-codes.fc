@@ -1,3 +1,10 @@
+;; custom
+const op::withdraw = 555;
+const err::not_owner = 534;
+const err::unknown_op_code = 777;
+const err::lack_of_unlock = 484;
+const err::not_come_unlock = 484;
+
 ;; common
 
 const op::transfer = 0xf8a7ea5;
