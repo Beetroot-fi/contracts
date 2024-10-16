@@ -1,13 +1,25 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core';
 
-export type MainConfig = {};
+export type MainConfig = {
+    usdtJettonMasterAddress: Address,
+    usdtJettonWalletCode: Cell,
+    rootMasterAddress: Address,
+    userScCode: Cell,
+    adminAddress: Address
+};
 
 export function mainConfigToCell(config: MainConfig): Cell {
-    return beginCell().endCell();
+    return beginCell()
+        .storeRef(config.usdtJettonWalletCode)
+        .storeRef(config.userScCode)
+        .storeAddress(config.usdtJettonMasterAddress)
+        .storeAddress(config.adminAddress)
+        .storeAddress(config.rootMasterAddress)
+        .endCell();
 }
 
 export class Main implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
+    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) { }
 
     static createFromAddress(address: Address) {
         return new Main(address);
