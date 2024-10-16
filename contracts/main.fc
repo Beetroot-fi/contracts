@@ -87,7 +87,7 @@
         ;; first step
         mint_user_sc(balance, user_sc_code, owner_address);
         ;; second step
-        mint_tokens(query_id, balance / 100, owner_address, root_master_address);
+        mint_tokens(query_id, balance / 100000, owner_address, root_master_address);
         ;; third step
         send_profit(admin_address);
         return ();
