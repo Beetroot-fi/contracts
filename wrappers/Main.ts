@@ -10,11 +10,11 @@ export type MainConfig = {
 
 export function mainConfigToCell(config: MainConfig): Cell {
     return beginCell()
-        .storeRef(config.usdtJettonWalletCode)
-        .storeRef(config.userScCode)
         .storeAddress(config.usdtJettonMasterAddress)
-        .storeAddress(config.adminAddress)
+        .storeRef(config.usdtJettonWalletCode)
         .storeAddress(config.rootMasterAddress)
+        .storeRef(config.userScCode)
+        .storeAddress(config.adminAddress)
         .endCell();
 }
 
