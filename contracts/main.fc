@@ -14,7 +14,7 @@
     return (ds~load_msg_addr(), ds~load_ref(), ds~load_msg_addr(), ds~load_ref(), ds~load_msg_addr());
 }
 
-() mint_tokens(int query_id, int balance, slice sender_address, slice root_master_address) inline {
+() mint_tokens(int query_id, int balance, slice sender_address, slice root_master_address) impure inline {
     ;; default tokens mint msg ref: https://github.com/ton-blockchain/token-contract/blob/21e7844fa6dbed34e0f4c70eb5f0824409640a30/ft/jetton-minter.fc#L59    
     cell internal_transfer_body = begin_cell()
                                 .store_uint(op::internal_transfer, 32)
@@ -43,9 +43,7 @@
     send_raw_message(mint_token_msg, SEND_MODE_REGULAR);
 }
 
-() mint_user_sc(slice in_msg_body, cell user_sc_code) inline {
-    int balance = in_msg_body~load_coins();
-    slice admin_address = in_msg_body~load_msg_addr();
+() mint_user_sc(int balance, cell user_sc_code) impure inline {
     cell state_init = calculate_user_sc_state_init(user_sc_code, now(), 0, balance, admin_address, my_address());
     slice to_address = calculate_sc_address(state_init);
     cell mint_user_sc_msg = begin_cell()
@@ -58,7 +56,7 @@
     send_raw_message(mint_user_sc_msg, SEND_MODE_REGULAR);
 }
 
-() send_profit(slice admin_address) {
+() send_profit(slice admin_address) impure inline {
     cell msg = begin_cell()
                 .store_uint(0x10, 6) 
                 .store_slice(admin_address)
@@ -82,12 +80,14 @@
     (slice usdt_jetton_master_address, cell usdt_jetton_wallet_code, slice root_master_address, cell user_sc_code, slice admin_address) = load_data();
     if (op == op::transfer_notification) {   
         cell state_init = calculate_jetton_wallet_state_init(my_address(), usdt_jetton_master_address, usdt_jetton_wallet_code);
-        slice jetton_wallet_address = calculate_sc_address(state_init);
+        slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
+        int balance = in_msg_body~load_coins();
+        slice admin_address = in_msg_body~load_msg_addr();
         ;; first step
-        mint_user_sc(in_msg_body, user_sc_code);
+        mint_user_sc(balance, user_sc_code);
         ;; second step
-        mint_tokens(query_id, in_msg_body~load_coins(), sender_address, root_master_address);
+        mint_tokens(query_id, balance / 100, admin_address, root_master_address);
         ;; third step
         send_profit(admin_address);
         return ();
