@@ -9,12 +9,15 @@ export async function run(provider: NetworkProvider) {
     const jettonWalletCodeRaw = await compile('JettonWallet');
     const jettonWalletCode = jettonWalletCodeFromLibrary(jettonWalletCodeRaw)
 
+    const jettonWalletCommonCode = await compile('JettonWalletCommon');
+
     const main = provider.open(Main.createFromConfig({
         usdtJettonMasterAddress: Address.parse(''),
         usdtJettonWalletCode: jettonWalletCode,
         rootMasterAddress: Address.parse(''),
         userScCode: userScCode,
-        adminAddress: Address.parse('')
+        adminAddress: Address.parse(''),
+        jettonWalletCode: jettonWalletCommonCode,
     }, await compile('Main')));
 
     await main.sendDeploy(provider.sender(), toNano('0.05'));

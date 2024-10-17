@@ -1,14 +1,15 @@
 #include "imports/stdlib.fc";
 #include "imports/op-codes.fc";
+#include "imports/jetton-wallet-common-utils.fc";
 
 const int week = 60 * 60 * 24 * 7; ;; week in seconds
 
-(int, int, slice, int, slice) load_data() inline {
+(int, int, slice, int, slice, slice, cell) load_data() inline {
     slice ds = get_data().begin_parse();
-    return (ds~load_uint(64), ds~load_uint(64), ds~load_msg_addr(), ds~load_uint(64), ds~load_msg_addr());
+    return (ds~load_uint(64), ds~load_uint(64), ds~load_msg_addr(), ds~load_uint(64), ds~load_msg_addr(), ds~load_msg_addr(), ds~load_ref());
 }
 
-() save_data(int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address) impure inline {
+() save_data(int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) impure inline {
     set_data(
         begin_cell()
         .store_uint(deposit_timestamp, 64)
@@ -16,6 +17,8 @@ const int week = 60 * 60 * 24 * 7; ;; week in seconds
         .store_slice(admin_address)
         .store_uint(balance, 64)
         .store_slice(main_sc_address)
+        .store_slice(root_master_address)
+        .store_ref(jetton_wallet_code)
         .end_cell()
     );
 }
@@ -30,13 +33,30 @@ const int week = 60 * 60 * 24 * 7; ;; week in seconds
     slice sender_address = cs~load_msg_addr();
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
-    (int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address) = load_data();
+    (int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) = load_data();
     if (op == op::withdraw) {
         throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
         throw_if(err::lack_of_unlock, unlock_timestamp == 0);
         int unlock_timestamp = now() + week;
         save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address); ;; set unlock_timestamp
         return ();
+    }
+    if (op == op::transfer_notification) {
+        throw_unless(err::not_come_unlock, unlock_timestamp < now());
+        cell state_init = calculate_jetton_wallet_state_init(admin_address, root_master_address, jetton_wallet_code)
+        slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
+        throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
+        slice msg_body = begin_cell()
+                        .end_cell()
+                        .begin_parse();
+        cell msg = begin_cell()
+                    .store_uint(0x10, 6)
+                    .store_slice(main_sc_address)
+                    .store_coins(20000000) ;; 0.02 tons
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                    .store_slice(msg_body)
+                    .end_cell();
+        send_raw_message(msg ,SEND_MODE_REGULAR);
     }
     ;; if wrong op code
     throw(err::unknown_op_code);

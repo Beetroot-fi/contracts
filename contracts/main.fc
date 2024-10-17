@@ -10,7 +10,6 @@
     ;; - root jetton master address
     ;; - user sc code
     ;; - admin address
-    ;; - common jettonw wallet code
     slice ds = get_data().begin_parse();
     return (ds~load_msg_addr(), ds~load_ref(), ds~load_msg_addr(), ds~load_ref(), ds~load_msg_addr(), ds~load_ref());
 }
@@ -44,8 +43,8 @@
     send_raw_message(mint_token_msg, SEND_MODE_REGULAR);
 }
 
-() mint_user_sc(int balance, cell user_sc_code, slice owner_address) impure inline {
-    cell state_init = calculate_user_sc_state_init(user_sc_code, now(), 0, balance, owner_address, my_address());
+() mint_user_sc(int balance, cell user_sc_code, slice owner_address, slice root_master_address,  cell jetton_wallet_code) impure inline {
+    cell state_init = calculate_user_sc_state_init(user_sc_code, now(), 0, balance, owner_address, my_address(), root_master_address, jetton_wallet_code);
     slice to_address = calculate_sc_address(state_init);
     cell mint_user_sc_msg = begin_cell()
                             .store_uint(0x10, 6)
@@ -78,7 +77,7 @@
     slice sender_address = cs~load_msg_addr();
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
-    (slice usdt_jetton_master_address, cell usdt_jetton_wallet_code, slice root_master_address, cell user_sc_code, slice admin_address, cell common_jetton_wallet_code) = load_data();
+    (slice usdt_jetton_master_address, cell usdt_jetton_wallet_code, slice root_master_address, cell user_sc_code, slice admin_address, cell jetton_wallet_codes) = load_data();
     if (op == op::transfer_notification) {   
         cell state_init = calculate_jetton_wallet_state_init(my_address(), usdt_jetton_master_address, usdt_jetton_wallet_code);
         slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
@@ -86,7 +85,7 @@
         int balance = in_msg_body~load_coins();
         slice owner_address = in_msg_body~load_msg_addr();
         ;; first step
-        mint_user_sc(balance, user_sc_code, owner_address);
+        mint_user_sc(balance, user_sc_code, owner_address, root_master_address, jetton_wallet_address);
         ;; second step
         mint_tokens(query_id, balance / 100000, owner_address, root_master_address);
         ;; third step
