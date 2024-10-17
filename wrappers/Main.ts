@@ -5,7 +5,8 @@ export type MainConfig = {
     usdtJettonWalletCode: Cell,
     rootMasterAddress: Address,
     userScCode: Cell,
-    adminAddress: Address
+    adminAddress: Address,
+    jettonWalletCode: Cell,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -15,6 +16,7 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeAddress(config.rootMasterAddress)
         .storeRef(config.userScCode)
         .storeAddress(config.adminAddress)
+        .storeRef(config.jettonWalletCode)
         .endCell();
 }
 
