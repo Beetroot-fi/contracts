@@ -23,6 +23,43 @@ const int week = 60 * 60 * 24 * 7; ;; week in seconds
     );
 }
 
+() burn(int jetton_amount, slice jetton_wallet_address, int query_id) impure inline {
+    slice msg_body = begin_cell()
+                    .store_uint(op::burn, 32)
+                    .store_uint(query_id, 64)
+                    .store_coins(jetton_amount)
+                    .store_slice(my_address())
+                    .store_uint(0, 1)
+                    .end_cell()
+                    .begin_parse();
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_wallet_address)
+                .store_coins(30000000) ;; 0.03 tons
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_slice(msg_body)
+                .end_cell();
+    send_raw_message(msg, SEND_MODE_REGULAR);
+}
+
+() claim(int query_id, int deposit_timestamp, slice owner_address, slice main_sc_address) impure inline {
+    slice msg_body = begin_cell()
+                    .store_uint(op::claim, 32)
+                    .store_uint(query_id, 64)
+                    .store_uint(deposit_timestamp, 64)
+                    .store_slice(owner_address)
+                    .end_cell()
+                    .begin_parse();
+    cell msg = begin_cell()
+                .store_uint(0x10, 6)
+                .store_slice(main_sc_address)
+                .store_coins(20000000) ;; 0.02 tons
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_slice(msg_body)
+                .end_cell();
+    send_raw_message(msg ,SEND_MODE_REGULAR);
+}
+
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -34,40 +71,40 @@ const int week = 60 * 60 * 24 * 7; ;; week in seconds
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
     (int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) = load_data();
+    if (op == op::deposit) {
+        throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
+        int balance = in_msg_body~load_uint(64);
+        int deposit_timestamp = in_msg_body~load_uint(64);
+        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
+        return();
+    }
     if (op == op::withdraw) {
         throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
         throw_if(err::lack_of_unlock, unlock_timestamp == 0);
         int unlock_timestamp = now() + week;
-        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address); ;; set unlock_timestamp
+        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
         return ();
     }
     if (op == op::transfer_notification) {
-        throw_unless(err::not_come_unlock, unlock_timestamp < now());
-        cell state_init = calculate_jetton_wallet_state_init(admin_address, root_master_address, jetton_wallet_code)
+        cell state_init = calculate_jetton_wallet_state_init(admin_address, root_master_address, jetton_wallet_code);
         slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
-        slice msg_body = begin_cell()
-                        .end_cell()
-                        .begin_parse();
-        cell msg = begin_cell()
-                    .store_uint(0x10, 6)
-                    .store_slice(main_sc_address)
-                    .store_coins(20000000) ;; 0.02 tons
-                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                    .store_slice(msg_body)
-                    .end_cell();
-        send_raw_message(msg ,SEND_MODE_REGULAR);
+        throw_unless(err::not_come_unlock, unlock_timestamp < now());
+        claim(query_id, deposit_timestamp, admin_address, main_sc_address);
+        int jetton_amount = in_msg_body~load_coins();
+        burn(jetton_amount, jetton_wallet_address, query_id);
+        return();
     }
     ;; if wrong op code
     throw(err::unknown_op_code);
 }
 
 
-(int, int, slice, int, slice) get_user_data() method_id {
+(int, int, slice, int, slice, slice, cell) get_user_data() method_id {
     return load_data();
 }
 
 int get_unlock_timestamp() method_id {
-    var (_, unlock_timestamp, _, _, _) = load_data();
+    var (_, unlock_timestamp, _, _, _, _, _) = load_data();
     return unlock_timestamp;
 }

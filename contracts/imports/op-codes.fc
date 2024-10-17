@@ -1,6 +1,11 @@
 ;; custom
 const op::withdraw = 555;
 const op::mint_token = 21;
+const op::claim = 22;
+const op::deposit = 20;
+
+const err::not_parent = 544;
+const err::not_child = 543;
 const err::not_owner = 534;
 const err::unknown_op_code = 777;
 const err::lack_of_unlock = 484;
