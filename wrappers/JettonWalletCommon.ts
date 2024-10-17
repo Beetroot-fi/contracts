@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 
 export type JettonWalletCommonConfig = {};
 
-export function userConfigToCell(config: JettonWalletCommonConfig): Cell {
+export function jettonWalletCommonConfigToCell(config: JettonWalletCommonConfig): Cell {
     return beginCell().endCell();
 }
 
@@ -14,7 +14,7 @@ export class JettonWalletCommon implements Contract {
     }
 
     static createFromConfig(config: JettonWalletCommonConfig, code: Cell, workchain = 0) {
-        const data = userConfigToCell(config);
+        const data = jettonWalletCommonConfigToCell(config);
         const init = { code, data };
         return new JettonWalletCommon(contractAddress(workchain, init), init);
     }

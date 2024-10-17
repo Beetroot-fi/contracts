@@ -9,7 +9,7 @@ export async function run(provider: NetworkProvider) {
     const jettonWalletCodeRaw = await compile('JettonWallet');
     const jettonWalletCode = jettonWalletCodeFromLibrary(jettonWalletCodeRaw)
 
-    const jettonWalletCommonCode = await compile('JettonWalletCommon');
+    const jettonWalletCommonCode = await compile('JettonWalletCommon')
 
     const main = provider.open(Main.createFromConfig({
         usdtJettonMasterAddress: Address.parse(''),
