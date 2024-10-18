@@ -2,15 +2,14 @@ int workchain() asm "0 PUSHINT";
 
 cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) inline {
     cell user_sc_data = begin_cell()
-                        .store_uint(0, 64)
-                        .store_uint(0, 64)
+                        .store_uint(100, 32)
+                        .store_uint(100, 32)
                         .store_slice(admin_address)
-                        .store_uint(0, 64)
+                        .store_uint(100, 64)
                         .store_slice(main_sc_address)
                         .store_slice(root_master_address)
                         .store_ref(jetton_wallet_code)
                         .end_cell();
-    
     return begin_cell()
             .store_uint(6, 5)
             .store_ref(user_sc_code)
