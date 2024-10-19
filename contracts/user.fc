@@ -51,7 +51,7 @@ const int five_mins = 60 * 5;
                     .end_cell()
                     .begin_parse();
     cell msg = begin_cell()
-                .store_uint(0x10, 6)
+                .store_uint(0x18, 6)
                 .store_slice(main_sc_address)
                 .store_coins(20000000) ;; 0.02 tons
                 .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
@@ -80,8 +80,9 @@ const int five_mins = 60 * 5;
         return();
     }
     if (op == op::withdraw) {
+        in_msg_body.end_parse();
         throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
-        throw_if(err::lack_of_unlock, unlock_timestamp == 0);
+        throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
         ;; update unlock timestamp
         int unlock_timestamp = now() + five_mins;
         ;; TODO: send msgs to get current APY, receive answers & calc reward

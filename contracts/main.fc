@@ -27,11 +27,11 @@
                     .end_cell()
                     .begin_parse();
     cell msg = begin_cell()
-                .store_uint(0x10, 6)
+                .store_uint(0x18, 6)
                 .store_slice(usdt_jetton_wallet_address)
                 .store_coins(30000000) ;; 0.03 tons
                 .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_slice(mint_token_body)
+                .store_slice(msg_body)
                 .end_cell();
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
@@ -87,7 +87,7 @@
 
 () send_profit(slice admin_address) impure inline {
     cell msg = begin_cell()
-                .store_uint(0x10, 6) 
+                .store_uint(0x18, 6) 
                 .store_slice(admin_address)
                 .store_coins(100000000) ;; 0.1 ton
                 .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
@@ -116,7 +116,7 @@
         ;; first step
         mint_user_sc(query_id, balance, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
         ;; second step
-        mint_tokens(query_id, balance / 100 / 1000000, owner_address, root_master_address);
+        mint_tokens(query_id, balance / 1000000, owner_address, root_master_address);
         ;; third step
         send_profit(admin_address);
         return ();
@@ -126,7 +126,7 @@
         int balance = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
         cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
-        slice user_sc_address = calculate_jetton_wallet_address(state_init);
+        slice user_sc_address = calculate_sc_address(state_init);
         throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
         ;; sending reward for user
         cell state_init = calculate_jetton_wallet_state_init(my_address(), usdt_jetton_master_address, usdt_jetton_wallet_code);
