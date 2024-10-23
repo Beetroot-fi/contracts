@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core';
 
 export type JettonWalletCommonConfig = {
     ownerAddress: Address,
@@ -59,5 +59,15 @@ export class JettonWalletCommon implements Contract {
                 .storeUint(0, 1)
                 .endCell(),
         });
+    }
+
+    async getWalletData(provider: ContractProvider) {
+        let { stack } = await provider.get('get_wallet_data', []);
+        return {
+            balance: stack.readBigNumber(),
+            owner: stack.readAddress(),
+            minter: stack.readAddress(),
+            wallet_code: stack.readCell()
+        }
     }
 }
