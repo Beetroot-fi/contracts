@@ -2,8 +2,8 @@
 #include "imports/op-codes.fc";
 #include "imports/jetton-wallet-common-utils.fc";
 
-const int week = 60 * 60 * 24 * 7; ;; week in seconds
-const int five_mins = 60 * 5;
+const int week = 604800; ;; week in seconds
+const int day = 86400; ;; day in seconds
 
 (int, int, slice, int, slice, slice, cell) load_data() inline {
     slice ds = get_data().begin_parse();
@@ -84,7 +84,7 @@ const int five_mins = 60 * 5;
         throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
         throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
         ;; update unlock timestamp
-        int unlock_timestamp = now() + five_mins;
+        int unlock_timestamp = now() + day;
         ;; TODO: send msgs to get current APY, receive answers & calc reward
         save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
         return ();
@@ -93,7 +93,7 @@ const int five_mins = 60 * 5;
         cell state_init = calculate_jetton_wallet_state_init(admin_address, root_master_address, jetton_wallet_code);
         slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
-        throw_unless(err::not_come_unlock, unlock_timestamp < now());
+        throw_unless(err::not_come_unlock, unlock_timestamp <= now());
         ;; claim usdt from main contract to admin
         claim(query_id, admin_address, main_sc_address, balance);
         ;; burn transfered tokens
