@@ -24,6 +24,7 @@ describe('Main', () => {
     let mainUsdtJettonWallet: SandboxContract<JettonWallet>;
     let deployerBeetrootJettonWallet: SandboxContract<JettonWalletCommon>;
     let beetrootMaster: SandboxContract<JettonMaster>;
+    let deployerUserSc: SandboxContract<User>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
@@ -109,7 +110,7 @@ describe('Main', () => {
 
         // deploy beetroot master
         beetrootMaster = blockchain.openContract(JettonMaster.createFromConfig({
-            totalSupply: toNano('864239'),
+            totalSupply: toNano('1000000000'),
             adminAddress: deployer.address,
             content: beginCell()
                 .storeUint(0x01, 8)
@@ -168,6 +169,8 @@ describe('Main', () => {
         // getting main beetroot jetton wallet
         let deployerBeetrootJettonWalletAddress = await beetrootMaster.getWalletAddress(deployer.address);
         deployerBeetrootJettonWallet = blockchain.openContract(JettonWalletCommon.createFromAddress(deployerBeetrootJettonWalletAddress));
+
+        deployerUserSc = blockchain.openContract(User.createFromAddress(await main.getUserScAddress(deployer.address)));
     });
 
     it('should deploy user sc, mint beetroot & send reward for admins if receive usdt', async () => {
@@ -207,14 +210,13 @@ describe('Main', () => {
         });
 
         // check deploy user sc
-        let deployerUserScAddress = await main.getUserScAddress(deployer.address)
         expect(result.transactions).toHaveTransaction({
             from: main.address,
-            to: deployerUserScAddress,
+            to: deployerUserSc.address,
             success: true,
             deploy: true,
+            op: 20, // deposit
         });
-        let deployerUserSc = blockchain.openContract(User.createFromAddress(deployerUserScAddress));
         let userScData = await deployerUserSc.getUserData();
         expect(userScData.adminAddress).toEqualAddress(deployer.address);
         expect(userScData.balance).toEqual(BigInt(200 * 1e6));
@@ -240,13 +242,59 @@ describe('Main', () => {
         expect(deployerBeetrootJettonWalletData.balance).toEqual(toNano('2'));
 
         // check sending profit to admins
-        // TODO: FIX THAT WHY 9 EXIT CODE
         expect(result.transactions).toHaveTransaction({
             from: main.address,
             to: mainUsdtJettonWallet.address,
+            success: true,
             op: 260734629, // 0xf8a7ea5 - tranfer
-            exitCode: 9,
         });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: deployerUsdtJettonWallet.address,
+            success: true,
+            op: 395134233, // 0x178d4519 - internal_transfer
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: deployerUsdtJettonWallet.address,
+            to: deployer.address,
+            success: true,
+            op: 1935855772 // 0x7362d09c - transfer_notification
+        });
+    });
+
+    it('should setup unlock timestamp if send withdraw', async () => {
+        // init all
+        await deployer.send({
+            to: deployerUsdtJettonWallet.address,
+            value: toNano('1'),
+            body: beginCell()
+                .storeUint(0xf8a7ea5, 32)
+                .storeUint(0, 64)
+                .storeCoins(BigInt(200 * 1e6))
+                .storeAddress(main.address)
+                .storeAddress(deployer.address)
+                .storeMaybeRef(null)
+                .storeCoins(toNano('0.3'))
+                .storeMaybeRef(null)
+                .endCell()
+        });
+
+        const result = await deployer.send({
+            to: deployerUserSc.address,
+            value: toNano('0.2'),
+            body: beginCell()
+                .storeUint(555, 32)
+                .storeUint(0n, 64)
+                .endCell(),
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: deployerUserSc.address,
+            success: true,
+            op: 555,
+        });
+        let unlockTimestamp = await deployerUserSc.getUnlockTimestamp();
+        expect(unlockTimestamp).toEqual(500n + 86400n); // 1 day
     });
 });
 
