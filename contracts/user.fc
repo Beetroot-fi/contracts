@@ -25,20 +25,19 @@ const int day = 86400; ;; day in seconds
 }
 
 () burn(int jetton_amount, slice jetton_wallet_address, int query_id) impure inline {
-    slice msg_body = begin_cell()
+    cell msg_body = begin_cell()
                     .store_uint(op::burn, 32)
                     .store_uint(query_id, 64)
                     .store_coins(jetton_amount)
                     .store_slice(my_address())
                     .store_uint(0, 1)
-                    .end_cell()
-                    .begin_parse();
+                    .end_cell();
     cell msg = begin_cell()
                 .store_uint(0x18, 6)
                 .store_slice(jetton_wallet_address)
                 .store_coins(30000000) ;; 0.03 tons
-                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_slice(msg_body)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_ref(msg_body)
                 .end_cell();
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
@@ -48,6 +47,7 @@ const int day = 86400; ;; day in seconds
                     .store_uint(op::claim, 32)
                     .store_uint(query_id, 64)
                     .store_slice(owner_address)
+                    .store_uint(balance, 64)
                     .end_cell()
                     .begin_parse();
     cell msg = begin_cell()
