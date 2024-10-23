@@ -1,7 +1,7 @@
+import { toNano, Address } from '@ton/core';
 import { compile, NetworkProvider } from '@ton/blueprint';
-import { jettonWalletCodeFromLibrary } from "../helpers/utils";
-import { Address, toNano } from '@ton/core';
 import { JettonWallet } from '../wrappers/JettonWallet';
+import { jettonWalletCodeFromLibrary } from '../helpers/utils';
 
 export async function run(provider: NetworkProvider) {
     const jettonWalletCodeRaw = await compile('JettonWallet');
@@ -9,17 +9,17 @@ export async function run(provider: NetworkProvider) {
 
     const jettonWallet = provider.open(JettonWallet.createFromConfig({
         ownerAddress: Address.parse(''),
-        jettonMasterAddress: Address.parse('')
+        jettonMasterAddress: Address.parse(''),
     }, jettonWalletCode));
 
     await jettonWallet.sendTransfer(
         provider.sender(),
-        toNano('0.3'),
+        toNano('1'),
         BigInt(150 * 1e6), // jetton amount
-        Address.parse(''), // destination address
-        Address.parse(''), // response destination address
+        Address.parse(''), // destination
+        Address.parse(''), // response destination
         null, // custom payload
         toNano('0.3'), // forward ton amount
-        null // forward payload
+        null, // forward payload
     );
 }
