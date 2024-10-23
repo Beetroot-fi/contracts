@@ -58,4 +58,28 @@ export class User implements Contract {
                 .endCell(),
         });
     }
+
+    async getUserData(provider: ContractProvider) {
+        const result = (await provider.get('get_user_data', [])).stack;
+        let depositTimestamp = result.readBigNumber();
+        let unlockTimestamp = result.readBigNumber();
+        let adminAddress = result.readAddress();
+        let balance = result.readBigNumber();
+        let mainScAddress = result.readAddress();
+        let rootMasterAddress = result.readAddress();
+
+        return {
+            depositTimestamp,
+            unlockTimestamp,
+            adminAddress,
+            balance,
+            mainScAddress,
+            rootMasterAddress,
+        };
+    }
+
+    async getUnlockTimestamp(provider: ContractProvider) {
+        const result = (await provider.get('get_unlock_timestamp', [])).stack
+        return result.readBigNumber();
+    }
 }
