@@ -90,7 +90,7 @@ const int day = 86400; ;; day in seconds
         return ();
     }
     if (op == op::transfer_notification) {
-        cell state_init = calculate_jetton_wallet_state_init(admin_address, root_master_address, jetton_wallet_code);
+        cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
         throw_unless(err::not_come_unlock, unlock_timestamp <= now());
