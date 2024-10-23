@@ -82,7 +82,7 @@ const int day = 86400; ;; day in seconds
     if (op == op::withdraw) {
         in_msg_body.end_parse();
         throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
-        throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
+        throw_unless(err::lack_of_unlock, unlock_timestamp <= 0);
         ;; update unlock timestamp
         int unlock_timestamp = now() + day;
         ;; TODO: send msgs to get current APY, receive answers & calc reward
