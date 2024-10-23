@@ -86,6 +86,7 @@ describe('Main', () => {
             from: deployer.address,
             to: usdtMaster.address,
             success: true,
+            op: 1680571655 // 0x642b7d07 - mint usdt jetton master
         });
 
         deployerUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
@@ -103,6 +104,7 @@ describe('Main', () => {
             from: deployerUsdtJettonWallet.address,
             to: deployer.address,
             success: true,
+            op: 1935855772, // 0x7362d09c - transfer_notification
         });
 
         // deploy beetroot master
@@ -154,6 +156,7 @@ describe('Main', () => {
             from: deployer.address,
             to: beetrootMaster.address,
             success: true,
+            op: 3, // change admin
         });
         let beetrootMasterData = await beetrootMaster.getJettonData();
         expect(beetrootMasterData.adminAddress).toEqualAddress(main.address);
@@ -188,16 +191,19 @@ describe('Main', () => {
             from: deployer.address,
             to: deployerUsdtJettonWallet.address,
             success: true,
+            op: 260734629, // 0xf8a7ea5 - tranfer
         });
         expect(result.transactions).toHaveTransaction({
             from: deployerUsdtJettonWallet.address,
             to: mainUsdtJettonWallet.address,
             success: true,
+            op: 395134233 // 0x178d4519 - internal_transfer
         });
         expect(result.transactions).toHaveTransaction({
             from: mainUsdtJettonWallet.address,
             to: main.address,
             success: true,
+            op: 1935855772 // 0x7362d09c - transfer_notification
         });
 
         // check deploy user sc
@@ -222,11 +228,13 @@ describe('Main', () => {
             from: main.address,
             to: beetrootMaster.address,
             success: true,
+            op: 21, // mint default jetton master
         });
         expect(result.transactions).toHaveTransaction({
             from: beetrootMaster.address,
             to: deployerBeetrootJettonWallet.address,
             success: true,
+            op: 395134233, // 0x178d4519 - internal_transfer
         });
         let deployerBeetrootJettonWalletData = await deployerBeetrootJettonWallet.getWalletData();
         expect(deployerBeetrootJettonWalletData.balance).toEqual(toNano('2'));
@@ -236,6 +244,7 @@ describe('Main', () => {
         expect(result.transactions).toHaveTransaction({
             from: main.address,
             to: mainUsdtJettonWallet.address,
+            op: 260734629, // 0xf8a7ea5 - tranfer
             exitCode: 9,
         });
     });
