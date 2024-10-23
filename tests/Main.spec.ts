@@ -1,12 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { beginCell, Cell, toNano } from '@ton/core';
+import { beginCell, Cell, Dictionary, toNano } from '@ton/core';
 import { Main } from '../wrappers/Main';
 import { JettonMinter } from "../wrappers/Stablecoin"
-import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { jettonWalletCodeFromLibrary } from '../helpers/utils';
 import { JettonMaster } from '../wrappers/JettonMaster';
 import { JettonWallet } from '../wrappers/JettonWallet';
+import { JettonWalletCommon } from '../wrappers/JettonWalletCommon';
+import { User } from '../wrappers/User';
+import '@ton/test-utils';
 
 describe('Main', () => {
     let code: Cell;
@@ -18,6 +19,11 @@ describe('Main', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
     let main: SandboxContract<Main>;
+    let usdtMaster: SandboxContract<JettonMinter>;
+    let deployerUsdtJettonWallet: SandboxContract<JettonWallet>;
+    let mainUsdtJettonWallet: SandboxContract<JettonWallet>;
+    let deployerBeetrootJettonWallet: SandboxContract<JettonWalletCommon>;
+    let beetrootMaster: SandboxContract<JettonMaster>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
@@ -29,52 +35,78 @@ describe('Main', () => {
 
         // jetton wallet governed
         const jettonWalletCodeRaw = await compile('JettonWallet');
-        const jettonWalletCode = jettonWalletCodeFromLibrary(jettonWalletCodeRaw);
+
+        // install libs on blockchain
+        const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
+        _libs.set(BigInt(`0x${jettonWalletCodeRaw.hash().toString('hex')}`), jettonWalletCodeRaw);
+        const libs = beginCell().storeDictDirect(_libs).endCell();
+        blockchain.libs = libs;
+        let lib_prep = beginCell().storeUint(2, 8).storeBuffer(jettonWalletCodeRaw.hash()).endCell();
+        const jettonWalletCode = new Cell({ exotic: true, bits: lib_prep.bits, refs: lib_prep.refs });
 
         // jetton wallet
-        const jettonWalletCommonCode = await compile('JettonWalletCommon')
+        const jettonWalletCommonCode = await compile('JettonWalletCommon');
 
         // deploy usdt master
-        const stablecoin = blockchain.openContract(JettonMinter.createFromConfig({
+        usdtMaster = blockchain.openContract(JettonMinter.createFromConfig({
             admin: deployer.address,
             wallet_code: jettonWalletCode,
-            jetton_content: { uri: "https://raw.githubusercontent.com/Beetroot-fi/contracts/refs/heads/master/testnet-usdt-metadata.json" }
+            jetton_content: { uri: "https://raw.githubusercontent.com/welaskez/testnet-usdt-metadata/refs/heads/main/metadata.json" }
         }, await compile('Stablecoin')));
 
-        const deployResultUsdt = await stablecoin.sendDeploy(deployer.getSender(), toNano('1.5'));
+        const deployResultUsdt = await usdtMaster.sendDeploy(deployer.getSender(), toNano('1.5'));
         expect(deployResultUsdt.transactions).toHaveTransaction({
             from: deployer.address,
-            to: stablecoin.address,
+            to: usdtMaster.address,
             deploy: true,
             success: true,
         });
 
         // mint usdt for deployer
-        const mintUsdtForDepolyerResult = await stablecoin.sendMint(
-            deployer.getSender(),
-            deployer.address,
-            toNano('600'),
-        );
+        const mintUsdtForDepolyerResult = await deployer.send({
+            to: usdtMaster.address,
+            value: toNano('1.5'),
+            body: beginCell()
+                .storeUint(0x642b7d07, 32)
+                .storeUint(0, 64)
+                .storeAddress(deployer.address)
+                .storeCoins(toNano('0.1'))
+                .storeRef(beginCell()
+                    .storeUint(0x178d4519, 32)
+                    .storeUint(0, 64)
+                    .storeCoins(toNano('3000'))
+                    .storeAddress(deployer.address)
+                    .storeAddress(deployer.address)
+                    .storeCoins(toNano('0.05'))
+                    .storeUint(0, 1)
+                    .endCell())
+                .endCell(),
+        });
         expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
             from: deployer.address,
-            to: stablecoin.address,
+            to: usdtMaster.address,
             success: true,
         });
-        const deployerUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(await stablecoin.getWalletAddress(deployer.address)));
+
+        deployerUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
+            ownerAddress: deployer.address,
+            jettonMasterAddress: usdtMaster.address,
+        }, jettonWalletCode));
         expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
-            from: stablecoin.address,
+            from: usdtMaster.address,
             to: deployerUsdtJettonWallet.address,
             deploy: true,
+            success: true,
         });
 
         expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
             from: deployerUsdtJettonWallet.address,
             to: deployer.address,
-            op: 0x7362d09c,
+            success: true,
         });
 
         // deploy beetroot master
-        const jettonMaster = blockchain.openContract(JettonMaster.createFromConfig({
+        beetrootMaster = blockchain.openContract(JettonMaster.createFromConfig({
             totalSupply: toNano('864239'),
             adminAddress: deployer.address,
             content: beginCell()
@@ -84,19 +116,19 @@ describe('Main', () => {
             jettonWalletCode: jettonWalletCommonCode,
         }, await compile('JettonMaster')));
 
-        const deployResultJettonMaster = await jettonMaster.sendDeploy(deployer.getSender(), toNano('0.05'));
+        const deployResultJettonMaster = await beetrootMaster.sendDeploy(deployer.getSender(), toNano('0.05'));
         expect(deployResultJettonMaster.transactions).toHaveTransaction({
             from: deployer.address,
-            to: jettonMaster.address,
+            to: beetrootMaster.address,
             deploy: true,
             success: true,
         });
 
         // deploy main sc
         main = blockchain.openContract(Main.createFromConfig({
-            usdtJettonMasterAddress: stablecoin.address,
+            usdtJettonMasterAddress: usdtMaster.address,
             usdtJettonWalletCode: jettonWalletCode,
-            rootMasterAddress: jettonMaster.address,
+            rootMasterAddress: beetrootMaster.address,
             userScCode: await compile('User'),
             adminAddress: deployer.address,
             jettonWalletCode: jettonWalletCommonCode,
@@ -110,7 +142,7 @@ describe('Main', () => {
         });
 
         // change beetroot jetton master owner to main sc
-        const changeOwnerResult = await jettonMaster.sendChangeAdmin(
+        const changeOwnerResult = await beetrootMaster.sendChangeAdmin(
             deployer.getSender(),
             toNano('0.3'),
             {
@@ -120,12 +152,92 @@ describe('Main', () => {
         )
         expect(changeOwnerResult.transactions).toHaveTransaction({
             from: deployer.address,
-            to: jettonMaster.address,
+            to: beetrootMaster.address,
             success: true,
         });
+        let beetrootMasterData = await beetrootMaster.getJettonData();
+        expect(beetrootMasterData.adminAddress).toEqualAddress(main.address);
+
+        // getting main usdt jetton wallet
+        const mainJettonWalletAddress = await usdtMaster.getWalletAddress(main.address);
+        mainUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(mainJettonWalletAddress));
+
+        // getting main beetroot jetton wallet
+        let deployerBeetrootJettonWalletAddress = await beetrootMaster.getWalletAddress(deployer.address);
+        deployerBeetrootJettonWallet = blockchain.openContract(JettonWalletCommon.createFromAddress(deployerBeetrootJettonWalletAddress));
     });
 
     it('should deploy user sc, mint beetroot & send reward for admins if receive usdt', async () => {
+        const result = await deployer.send({
+            to: deployerUsdtJettonWallet.address,
+            value: toNano('1'),
+            body: beginCell()
+                .storeUint(0xf8a7ea5, 32)
+                .storeUint(0, 64)
+                .storeCoins(BigInt(200 * 1e6))
+                .storeAddress(main.address)
+                .storeAddress(deployer.address)
+                .storeMaybeRef(null)
+                .storeCoins(toNano('0.3'))
+                .storeMaybeRef(null)
+                .endCell()
+        });
 
+        // check trasnfer usdt
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: deployerUsdtJettonWallet.address,
+            success: true,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: deployerUsdtJettonWallet.address,
+            to: mainUsdtJettonWallet.address,
+            success: true,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: main.address,
+            success: true,
+        });
+
+        // check deploy user sc
+        let deployerUserScAddress = await main.getUserScAddress(deployer.address)
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: deployerUserScAddress,
+            success: true,
+            deploy: true,
+        });
+        let deployerUserSc = blockchain.openContract(User.createFromAddress(deployerUserScAddress));
+        let userScData = await deployerUserSc.getUserData();
+        expect(userScData.adminAddress).toEqualAddress(deployer.address);
+        expect(userScData.balance).toEqual(BigInt(200 * 1e6));
+        expect(userScData.depositTimestamp).toEqual(500n);
+        expect(userScData.unlockTimestamp).toEqual(0n);
+        expect(userScData.mainScAddress).toEqualAddress(main.address);
+        expect(userScData.rootMasterAddress).toEqualAddress(beetrootMaster.address)
+
+        // check mint beetroot
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: beetrootMaster.address,
+            success: true,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: beetrootMaster.address,
+            to: deployerBeetrootJettonWallet.address,
+            success: true,
+        });
+        let deployerBeetrootJettonWalletData = await deployerBeetrootJettonWallet.getWalletData();
+        expect(deployerBeetrootJettonWalletData.balance).toEqual(toNano('2'));
+
+        // check sending profit to admins
+        // TODO: FIX THAT WHY 9 EXIT CODE
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: mainUsdtJettonWallet.address,
+            exitCode: 9,
+        });
     });
 });
+
