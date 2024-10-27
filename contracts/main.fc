@@ -113,6 +113,7 @@
     if (op == op::claim) {
         slice admin_address = in_msg_body~load_msg_addr();
         int balance = in_msg_body~load_uint(64);
+        int profit = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
         cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
         slice user_sc_address = calculate_sc_address(state_init);
@@ -120,7 +121,7 @@
         ;; sending profit for user
         cell state_init = calculate_jetton_wallet_state_init(my_address(), usdt_jetton_master_address, usdt_jetton_wallet_code);
         slice usdt_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        send_tokens(balance, admin_address, query_id, usdt_jetton_wallet_address);
+        send_tokens(balance + profit, admin_address, query_id, usdt_jetton_wallet_address);
         return();
     }
     ;; if wrong op code
