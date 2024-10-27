@@ -58,7 +58,7 @@
     cell mint_token_msg = begin_cell()
                         .store_uint(0x18, 6) 
                         .store_slice(root_master_address)
-                        .store_coins(20000000) ;; 0.02 tons
+                        .store_coins(30000000) ;; 0.03 tons
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
                         .store_slice(mint_token_body)
                         .end_cell();
@@ -107,7 +107,7 @@
         ;; second step
         mint_tokens(query_id, balance * 10, owner_address, root_master_address);
         ;; third step
-        send_tokens(1000000, admin_address, query_id, jetton_wallet_address);
+        send_tokens(1000000, admin_address, query_id, jetton_wallet_address); ;; 1 usdt
         return ();
     }
     if (op == op::claim) {
