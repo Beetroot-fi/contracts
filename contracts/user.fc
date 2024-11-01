@@ -128,7 +128,7 @@ int calculate_profit(int deposit_timestamp, int unlock_timestamp) inline {
         if (balance == 0) {
             save_data(0, 0, admin_address, 0, main_sc_address, root_master_address, jetton_wallet_code);
         } else {
-            save_data(deposit_timestamp, unlock_timestamp, admin_address, balance,
+            save_data(deposit_timestamp, 0, admin_address, balance,
                 main_sc_address, root_master_address, jetton_wallet_code);
         }
         return();
