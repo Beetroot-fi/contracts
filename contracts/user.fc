@@ -115,15 +115,22 @@ int calculate_profit(int deposit_timestamp, int unlock_timestamp) inline {
         throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
         throw_unless(err::not_come_unlock, unlock_timestamp <= now());
         ;; claim usdt from main contract to admin
-        int profit = calculate_profit(deposit_timestamp, unlock_timestamp);
-        claim(query_id, admin_address, main_sc_address, balance, profit);
-        ;; burn transfered tokens
         int jetton_amount = in_msg_body~load_coins();
+        int usdt_amount = jetton_amount / 10;
+        int profit = calculate_profit(deposit_timestamp, unlock_timestamp);
+        claim(query_id, admin_address, main_sc_address, usdt_amount, profit);
+        ;; burn transfered tokens
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         burn(jetton_amount, my_jetton_wallet_address, query_id);
         ;; reset storage
-        save_data(0, 0, admin_address, 0, main_sc_address, root_master_address, jetton_wallet_code);
+        balance -= usdt_amount;
+        if (balance == 0) {
+            save_data(0, 0, admin_address, 0, main_sc_address, root_master_address, jetton_wallet_code);
+        } else {
+            save_data(deposit_timestamp, unlock_timestamp, admin_address, balance,
+                main_sc_address, root_master_address, jetton_wallet_code);
+        }
         return();
     }
     ;; if wrong op code
