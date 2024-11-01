@@ -65,6 +65,11 @@ const int root_price = 100; ;; current root price
     send_raw_message(msg ,SEND_MODE_REGULAR);
 }
 
+int calculate_profit(int deposit_timestamp, int unlock_timestamp) inline {
+    int profit = (root_price * apy * (unlock_timestamp - deposit_timestamp)) / year;
+    return profit * 10000;
+}
+
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -81,7 +86,16 @@ const int root_price = 100; ;; current root price
         int new_balance = in_msg_body~load_uint(64);
         int new_deposit_timestamp = in_msg_body~load_uint(32);
         in_msg_body.end_parse();
-        save_data(new_deposit_timestamp, unlock_timestamp, admin_address, balance + new_balance, main_sc_address, root_master_address, jetton_wallet_code);
+        if (balance > 0) {
+            int profit = calculate_profit(deposit_timestamp, now());
+            balance += profit;
+            balance += new_balance;
+            deposit_timestamp = now();
+        } else {
+            balance = new_balance;
+            deposit_timestamp = new_deposit_timestamp;
+        }
+        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
         return();
     }
     if (op == op::withdraw) {
@@ -101,8 +115,8 @@ const int root_price = 100; ;; current root price
         throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
         throw_unless(err::not_come_unlock, unlock_timestamp <= now());
         ;; claim usdt from main contract to admin
-        int profit = (root_price * apy * (unlock_timestamp - deposit_timestamp)) / year;
-        claim(query_id, admin_address, main_sc_address, balance, profit * 10000);
+        int profit = calculate_profit(deposit_timestamp, unlock_timestamp);
+        claim(query_id, admin_address, main_sc_address, balance, profit);
         ;; burn transfered tokens
         int jetton_amount = in_msg_body~load_coins();
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
