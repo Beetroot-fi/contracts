@@ -500,5 +500,67 @@ describe('Main', () => {
             exitCode: 484,
         });
     });
+
+    it('should claim if not all roots burned', async () => {
+        await deployer.send({
+            to: deployerUsdtJettonWallet.address,
+            value: toNano('0.4'),
+            body: beginCell()
+                .storeUint(0xf8a7ea5, 32)
+                .storeUint(0, 64)
+                .storeCoins(BigInt(300 * 1e6))
+                .storeAddress(main.address)
+                .storeAddress(deployer.address)
+                .storeMaybeRef(null)
+                .storeCoins(toNano('0.03'))
+                .storeMaybeRef(null)
+                .endCell()
+        });
+        await deployer.send({
+            to: deployerUserSc.address,
+            value: toNano('0.2'),
+            body: beginCell()
+                .storeUint(555, 32)
+                .storeUint(0n, 64)
+                .endCell(),
+        });
+        let unlockTimestamp = await deployerUserSc.getUnlockTimestamp();
+        blockchain.now = Number(unlockTimestamp) + 501;
+
+        const result = await deployer.send({
+            to: deployerBeetrootJettonWallet.address,
+            value: toNano('0.4'),
+            body: beginCell()
+                .storeUint(0xf8a7ea5, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('2'))
+                .storeAddress(deployerUserSc.address)
+                .storeAddress(deployer.address)
+                .storeMaybeRef(null)
+                .storeCoins(toNano('0.03'))
+                .storeMaybeRef(null)
+                .endCell()
+        });
+
+
+        expect((await deployerUserSc.getUserData()).balance).toEqual(BigInt(100 * 1e6));
+        expect((await deployerUserSc.getUserData()).unlockTimestamp).toEqual(0n);
+
+        // should burn 
+        let deployerUserScBeetrootJettonWalletAddress = await beetrootMaster.getWalletAddress(deployerUserSc.address);
+        expect(result.transactions).toHaveTransaction({
+            from: deployerUserSc.address,
+            to: deployerUserScBeetrootJettonWalletAddress,
+            success: true,
+            op: 1499400124, // 0x595f07bc - burn
+            body: beginCell()
+                .storeUint(1499400124, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano("2"))
+                .storeAddress(deployerUserSc.address)
+                .storeBit(0)
+                .endCell(),
+        });
+    });
 });
 
