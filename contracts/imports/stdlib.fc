@@ -450,6 +450,9 @@ builder store_slice(builder b, slice s) asm "STSLICER";
 builder store_grams(builder b, int x) asm "STGRAMS";
 builder store_coins(builder b, int x) asm "STVARUINT16";
 
+;; Implemented ~store_ref()
+(builder, ()) ~store_ref(builder b, cell c) asm(c b) "STREF";
+
 ;;; Stores dictionary `D` represented by `cell` [c] or `null` into `builder` [b].
 ;;; In other words, stores a `1`-bit and a reference to [c] if [c] is not `null` and `0`-bit otherwise.
 builder store_dict(builder b, cell c) asm(c b) "STDICT";
