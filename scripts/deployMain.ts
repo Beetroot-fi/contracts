@@ -6,23 +6,33 @@ import { jettonWalletCodeFromLibrary } from '../helpers/utils';
 export async function run(provider: NetworkProvider) {
     const userScCode = await compile('User');
 
-    const jettonWalletCodeRaw = await compile('JettonWallet');
-    const jettonWalletCode = jettonWalletCodeFromLibrary(jettonWalletCodeRaw)
+    const jettonWalletGovernedCodeRaw = await compile('JettonWallet');
+    const jettonWalletGovernedCode = jettonWalletCodeFromLibrary(jettonWalletGovernedCodeRaw);
 
-    const jettonWalletCommonCode = await compile('JettonWalletCommon')
+    const jettonWalletCode = await compile('JettonWalletCommon');
 
     const main = provider.open(Main.createFromConfig({
         usdtJettonMasterAddress: Address.parse(''),
-        usdtJettonWalletCode: jettonWalletCode,
         rootMasterAddress: Address.parse(''),
         userScCode: userScCode,
         adminAddress: Address.parse(''),
-        jettonWalletCode: jettonWalletCommonCode,
+        jettonWalletGovernedCode: jettonWalletGovernedCode,
+        jettonWalletCode: jettonWalletCode,
+        rootPrice: 100n,
+        usdtTlpMaster: Address.parse(''),
+        usdtSlpMaster: Address.parse(''),
+        evaaMaster: Address.parse(''),
+        tradoorMaster: Address.parse(''),
+        stormVault: Address.parse(''),
+        recentSender: Address.parse(''),
+        evaaMasterReceive: 0n,
+        tradoorMasterReceive: 0n,
+        stormVaultReceive: 0n,
+        usdtTlpReceive: 0n,
+        usdtSlpReceive: 0n,
     }, await compile('Main')));
 
     await main.sendDeploy(provider.sender(), toNano('0.05'));
 
     await provider.waitForDeploy(main.address);
-
-    // run methods on `main`
 }
