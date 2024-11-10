@@ -2,23 +2,25 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 
 export type UserConfig = {
     depositTimestamp: bigint,
-    unlockTimestamp: bigint,
     adminAddress: Address,
-    balance: bigint,
     mainScAddress: Address,
     rootMasterAddress: Address,
     jettonWalletCode: Cell,
+    usdtSlpAmount: bigint,
+    usdtTlpAmount: bigint,
+    totalDepositAmount: bigint,
 };
 
 export function userConfigToCell(config: UserConfig): Cell {
     return beginCell()
         .storeUint(config.depositTimestamp, 32)
-        .storeUint(config.unlockTimestamp, 32)
         .storeAddress(config.adminAddress)
-        .storeUint(config.balance, 64)
         .storeAddress(config.mainScAddress)
         .storeAddress(config.rootMasterAddress)
         .storeRef(config.jettonWalletCode)
+        .storeUint(config.usdtSlpAmount, 64)
+        .storeUint(config.usdtTlpAmount, 64)
+        .storeUint(config.totalDepositAmount, 64)
         .endCell();
 }
 
@@ -43,43 +45,18 @@ export class User implements Contract {
         });
     }
 
-    async sendWithdraw(
-        provider: ContractProvider,
-        via: Sender,
-        value: bigint,
-        queryId: bigint,
-    ) {
-        await provider.internal(via, {
-            value,
-            sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell()
-                .storeUint(555, 32)
-                .storeUint(queryId, 64)
-                .endCell(),
-        });
-    }
-
     async getUserData(provider: ContractProvider) {
         const result = (await provider.get('get_user_data', [])).stack;
-        let depositTimestamp = result.readBigNumber();
-        let unlockTimestamp = result.readBigNumber();
-        let adminAddress = result.readAddress();
-        let balance = result.readBigNumber();
-        let mainScAddress = result.readAddress();
-        let rootMasterAddress = result.readAddress();
 
         return {
-            depositTimestamp,
-            unlockTimestamp,
-            adminAddress,
-            balance,
-            mainScAddress,
-            rootMasterAddress,
+            depositTimestamp: result.readBigNumber(),
+            adminAddress: result.readAddress(),
+            mainScAddress: result.readAddress(),
+            rootMasterAddress: result.readAddress(),
+            jettonWalletCode: result.readCell(),
+            usdtSlpAmount: result.readBigNumber(),
+            usdtTlpAmount: result.readBigNumber(),
+            totalDepositAmount: result.readBigNumber(),
         };
-    }
-
-    async getUnlockTimestamp(provider: ContractProvider) {
-        const result = (await provider.get('get_unlock_timestamp', [])).stack
-        return result.readBigNumber();
     }
 }
