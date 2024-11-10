@@ -54,7 +54,7 @@
                     .store_uint(op::withdraw_internal, 32)
                     .store_uint(query_id, 64)
                     .store_slice(admin_address)
-                    .store_uint(deposit_timestamp, 64)
+                    .store_uint(deposit_timestamp, 32)
                     .store_uint(total_deposit_amount, 64)
                     .store_uint(usdt_slp_amount, 64)
                     .store_uint(usdt_tlp_amount, 64)
@@ -89,7 +89,7 @@
         int usdt_tlp_amount,
         int total_deposit_amount
     ) = load_data();
-    
+
     if (op == op::deposit) {
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
 
