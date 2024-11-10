@@ -93,21 +93,31 @@
     if (op == op::deposit) {
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
 
-        int deposit_timestamp = in_msg_body~load_uint(32);
+        int new_deposit_timestamp = in_msg_body~load_uint(32);
         int new_total_deposit_amount = in_msg_body~load_uint(64);
         int new_usdt_slp_amount = in_msg_body~load_uint(64);
         int new_usdt_tlp_amount = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
 
+        if (total_deposit_amount > 0) {
+            int yield = (100 * 15 * (now() - deposit_timestamp)) / 31536000;
+            int total_deposit_amount += yield * 10000;
+            int total_deposit_amount += new_total_deposit_amount;
+            int deposit_timestamp = now();
+        } else {
+            int total_deposit_amount = new_total_deposit_amount;
+            int deposit_timestamp = new_deposit_timestamp;
+        }
+        
         save_data(
             deposit_timestamp,
             admin_address,
             main_sc_address,
             root_master_address,
             jetton_wallet_code,
-            usdt_slp_amount + new_usdt_slp_amount,
-            usdt_tlp_amount + new_usdt_tlp_amount,
-            total_deposit_amount + new_total_deposit_amount
+            new_usdt_slp_amount,
+            new_usdt_tlp_amount,
+            total_deposit_amount
         );
         return();
     }
