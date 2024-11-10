@@ -1,14 +1,34 @@
 int workchain() asm "0 PUSHINT";
 
+
+() burn_tokens(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value) impure inline {
+    cell msg_body = begin_cell()
+                    .store_uint(op::burn, 32)
+                    .store_uint(query_id, 64)
+                    .store_coins(jetton_amount)
+                    .store_slice(my_address())
+                    .store_uint(0, 1)
+                    .end_cell();
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_wallet_address)
+                .store_coins(msg_value)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_ref(msg_body)
+                .end_cell();
+    send_raw_message(msg, SEND_MODE_REGULAR);
+}
+
 cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) inline {
     cell user_sc_data = begin_cell()
                         .store_uint(0, 32)
-                        .store_uint(0, 32)
                         .store_slice(admin_address)
-                        .store_uint(0, 64)
                         .store_slice(main_sc_address)
                         .store_slice(root_master_address)
                         .store_ref(jetton_wallet_code)
+                        .store_uint(0, 64)
+                        .store_uint(0, 64)
+                        .store_uint(0, 64)
                         .end_cell();
     return begin_cell()
             .store_uint(6, 5)
