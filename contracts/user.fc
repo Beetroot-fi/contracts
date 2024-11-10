@@ -100,23 +100,23 @@
         in_msg_body.end_parse();
 
         if (total_deposit_amount > 0) {
-            int yield = (100 * 15 * (now() - deposit_timestamp)) / 31536000;
-            int total_deposit_amount += yield * 10000;
-            int total_deposit_amount += new_total_deposit_amount;
-            int deposit_timestamp = now();
+            int yield = ((100 * 15 * (now() - deposit_timestamp)) / 31536000) * 10000;
+            total_deposit_amount += yield;
+            total_deposit_amount += new_total_deposit_amount;
+            deposit_timestamp = now();
         } else {
-            int total_deposit_amount = new_total_deposit_amount;
-            int deposit_timestamp = new_deposit_timestamp;
+            total_deposit_amount = new_total_deposit_amount;
+            deposit_timestamp = new_deposit_timestamp;
         }
-        
+
         save_data(
             deposit_timestamp,
             admin_address,
             main_sc_address,
             root_master_address,
             jetton_wallet_code,
-            new_usdt_slp_amount,
-            new_usdt_tlp_amount,
+            new_usdt_slp_amount + usdt_slp_amount,
+            new_usdt_tlp_amount + usdt_tlp_amount,
             total_deposit_amount
         );
         return();
