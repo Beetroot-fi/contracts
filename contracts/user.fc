@@ -1,148 +1,134 @@
 #include "imports/stdlib.fc";
 #include "imports/op-codes.fc";
+#include "imports/utils.fc";
 #include "imports/jetton-wallet-common-utils.fc";
 
-const int week = 604800; ;; week in seconds
-const int day = 86400; ;; day in seconds
-const int five_mins = 300; ;; 5 mins in secods
-const int year = 31536000; ;; year in seconds
-const int apy = 15; ;; current apy
-const int root_price = 100; ;; current root price
-
-(int, int, slice, int, slice, slice, cell) load_data() inline {
+(int, slice, slice, slice, cell, int, int, int) load_data() inline {
     slice ds = get_data().begin_parse();
-    return (ds~load_uint(32), ds~load_uint(32), ds~load_msg_addr(), ds~load_uint(64), ds~load_msg_addr(), ds~load_msg_addr(), ds~load_ref());
+    return (
+        ds~load_uint(32), 
+        ds~load_msg_addr(), 
+        ds~load_msg_addr(),
+        ds~load_msg_addr(), 
+        ds~load_ref(),
+        ds~load_uint(64),
+        ds~load_uint(64),
+        ds~load_uint(64)
+    );
 }
 
-() save_data(int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) impure inline {
+() save_data(
+    int deposit_timestamp,
+    slice admin_address,
+    slice main_sc_address,
+    slice root_master_address,
+    cell jetton_wallet_code,
+    int usdt_slp_amount,
+    int usdt_tlp_amount,
+    int total_deposit_amount
+) impure inline {
     set_data(
         begin_cell()
         .store_uint(deposit_timestamp, 32)
-        .store_uint(unlock_timestamp, 32)
         .store_slice(admin_address)
-        .store_uint(balance, 64)
         .store_slice(main_sc_address)
         .store_slice(root_master_address)
         .store_ref(jetton_wallet_code)
+        .store_uint(usdt_slp_amount, 64)
+        .store_uint(usdt_tlp_amount, 64)
+        .store_uint(total_deposit_amount, 64)
         .end_cell()
     );
 }
 
-() burn(int jetton_amount, slice jetton_wallet_address, int query_id) impure inline {
+() withdraw(
+    int query_id,
+    slice main_sc_address,
+    slice admin_address,
+    int deposit_timestamp,
+    int total_deposit_amount,
+    int usdt_slp_amount,
+    int usdt_tlp_amount
+) impure inline {
     cell msg_body = begin_cell()
-                    .store_uint(op::burn, 32)
+                    .store_uint(op::withdraw_internal, 32)
                     .store_uint(query_id, 64)
-                    .store_coins(jetton_amount)
-                    .store_slice(my_address())
-                    .store_uint(0, 1)
+                    .store_slice(admin_address)
+                    .store_uint(deposit_timestamp, 64)
+                    .store_uint(total_deposit_amount, 64)
+                    .store_uint(usdt_slp_amount, 64)
+                    .store_uint(usdt_tlp_amount, 64)
                     .end_cell();
-    cell msg = begin_cell()
-                .store_uint(0x18, 6)
-                .store_slice(jetton_wallet_address)
-                .store_coins(50000000) ;; 0.05 tons
-                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_ref(msg_body)
-                .end_cell();
-    send_raw_message(msg, SEND_MODE_REGULAR);
-}
-
-() claim(int query_id, slice owner_address, slice main_sc_address, int balance, int profit) impure inline {
-    slice msg_body = begin_cell()
-                    .store_uint(op::claim, 32)
-                    .store_uint(query_id, 64)
-                    .store_slice(owner_address)
-                    .store_uint(balance, 64)
-                    .store_uint(profit, 64)
-                    .end_cell()
-                    .begin_parse();
     cell msg = begin_cell()
                 .store_uint(0x18, 6)
                 .store_slice(main_sc_address)
                 .store_coins(20000000) ;; 0.02 tons
-                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_slice(msg_body)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_ref(msg_body)
                 .end_cell();
     send_raw_message(msg ,SEND_MODE_REGULAR);
-}
-
-int calculate_profit(int deposit_timestamp, int unlock_timestamp) inline {
-    int profit = (root_price * apy * (unlock_timestamp - deposit_timestamp)) / year;
-    return profit * 10000;
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
-    ;; ignore bounced messages
     if (flags & 1) {
+        ;; ignore bounced messages
         return ();
     }
     slice sender_address = cs~load_msg_addr();
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
-    (int deposit_timestamp, int unlock_timestamp, slice admin_address, int balance, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) = load_data();
+    (
+        int deposit_timestamp,
+        slice admin_address,
+        slice main_sc_address,
+        slice root_master_address,
+        cell jetton_wallet_code,
+        int usdt_slp_amount,
+        int usdt_tlp_amount,
+        int total_deposit_amount
+    ) = load_data();
+    
     if (op == op::deposit) {
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
-        int new_balance = in_msg_body~load_uint(64);
-        int new_deposit_timestamp = in_msg_body~load_uint(32);
+
+        int deposit_timestamp = in_msg_body~load_uint(32);
+        int new_total_deposit_amount = in_msg_body~load_uint(64);
+        int new_usdt_slp_amount = in_msg_body~load_uint(64);
+        int new_usdt_tlp_amount = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
-        if (balance > 0) {
-            int profit = calculate_profit(deposit_timestamp, now());
-            balance += profit;
-            balance += new_balance;
-            deposit_timestamp = now();
-        } else {
-            balance = new_balance;
-            deposit_timestamp = new_deposit_timestamp;
-        }
-        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
+
+        save_data(
+            deposit_timestamp,
+            admin_address,
+            main_sc_address,
+            root_master_address,
+            jetton_wallet_code,
+            usdt_slp_amount + new_usdt_slp_amount,
+            usdt_tlp_amount + new_usdt_tlp_amount,
+            total_deposit_amount + new_total_deposit_amount
+        );
         return();
-    }
-    if (op == op::withdraw) {
-        in_msg_body.end_parse();
-        throw_unless(err::not_owner, equal_slices(sender_address, admin_address));
-        throw_unless(err::lack_of_unlock, unlock_timestamp <= 0);
-        ;; update unlock timestamp
-        int unlock_timestamp = now() + day;
-        ;; TODO: send msgs to get current APY, receive answers & calc reward
-        save_data(deposit_timestamp, unlock_timestamp, admin_address, balance, main_sc_address, root_master_address, jetton_wallet_code);
-        return ();
     }
     if (op == op::transfer_notification) {
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        throw_unless(err::not_owner, equal_slices(sender_address, jetton_wallet_address));
-        throw_unless(err::lack_of_unlock, unlock_timestamp > 0);
-        throw_unless(err::not_come_unlock, unlock_timestamp <= now());
-        ;; claim usdt from main contract to admin
-        int jetton_amount = in_msg_body~load_coins();
-        int usdt_amount = jetton_amount / 10;
-        int profit = calculate_profit(deposit_timestamp, unlock_timestamp);
-        claim(query_id, admin_address, main_sc_address, usdt_amount, profit);
-        ;; burn transfered tokens
+        throw_unless(err::unknown_token, equal_slices(sender_address, jetton_wallet_address));
+
+        (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
+        throw_unless(err::not_owner, equal_slices(owner_address, admin_address));
+
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        burn(jetton_amount, my_jetton_wallet_address, query_id);
-        ;; reset storage
-        balance -= usdt_amount;
-        if (balance == 0) {
-            save_data(0, 0, admin_address, 0, main_sc_address, root_master_address, jetton_wallet_code);
-        } else {
-            save_data(deposit_timestamp, 0, admin_address, balance,
-                main_sc_address, root_master_address, jetton_wallet_code);
-        }
+        burn_tokens(jetton_amount, my_jetton_wallet_address, query_id, 300000000); ;; 0.3 tons
+        
+        withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
         return();
     }
-    ;; if wrong op code
     throw(err::unknown_op_code);
 }
 
-
-(int, int, slice, int, slice, slice, cell) get_user_data() method_id {
+(int, slice, slice, slice, cell, int, int, int) get_user_data() method_id {
     return load_data();
-}
-
-int get_unlock_timestamp() method_id {
-    (_, int unlock_timestamp, _, _, _, _, _) = load_data();
-    return unlock_timestamp;
 }
