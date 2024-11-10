@@ -2,7 +2,7 @@
 
 const int STATUS_SIZE = 4;
 
-cell pack_jetton_wallet_data(int status, int balance, slice owner_address, slice jetton_master_address) inline {
+cell pack_jetton_wallet_governed_data(int status, int balance, slice owner_address, slice jetton_master_address) inline {
     return begin_cell()
     .store_uint(status, STATUS_SIZE)
     .store_coins(balance)
@@ -11,7 +11,7 @@ cell pack_jetton_wallet_data(int status, int balance, slice owner_address, slice
     .end_cell();
 }
 
-cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+cell calculate_jetton_wallet_governed_state_init(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
     {-
     https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L144
     _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
@@ -22,7 +22,7 @@ cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master
     .store_uint(0, 2) ;; 0b00 - No split_depth; No special
     .store_maybe_ref(jetton_wallet_code)
     .store_maybe_ref(
-        pack_jetton_wallet_data(
+        pack_jetton_wallet_governed_data(
             0, ;; status
             0, ;; balance
             owner_address,
@@ -32,7 +32,7 @@ cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master
     .end_cell();
 }
 
-slice calculate_jetton_wallet_address(cell state_init) inline {
+slice calculate_jetton_wallet_governed_address(cell state_init) inline {
     {-
     https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L105
     addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 address:bits256  = MsgAddressInt;
@@ -45,8 +45,8 @@ slice calculate_jetton_wallet_address(cell state_init) inline {
     .begin_parse();
 }
 
-slice calculate_user_jetton_wallet_address(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
-    return calculate_jetton_wallet_address(calculate_jetton_wallet_state_init(owner_address, jetton_master_address, jetton_wallet_code));
+slice calculate_user_jetton_wallet_governed_address(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+    return calculate_jetton_wallet_governed_address(calculate_jetton_wallet_governed_state_init(owner_address, jetton_master_address, jetton_wallet_code));
 }
 
 () check_either_forward_payload(slice s) impure inline {
