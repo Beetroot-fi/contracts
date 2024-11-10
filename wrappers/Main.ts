@@ -5,8 +5,20 @@ export type MainConfig = {
     rootMasterAddress: Address,
     userScCode: Cell,
     adminAddress: Address,
-    usdtJettonWalletCode: Cell,
+    jettonWalletGovernedCode: Cell,
     jettonWalletCode: Cell,
+    rootPrice: bigint,
+    usdtTlpMaster: Address,
+    usdtSlpMaster: Address,
+    evaaMaster: Address,
+    tradoorMaster: Address,
+    stormVault: Address,
+    recentSender: Address,
+    evaaMasterReceive: bigint,
+    tradoorMasterReceive: bigint,
+    stormVaultReceive: bigint,
+    usdtTlpReceive: bigint,
+    usdtSlpReceive: bigint,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -15,8 +27,20 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeAddress(config.rootMasterAddress)
         .storeRef(config.userScCode)
         .storeAddress(config.adminAddress)
-        .storeRef(config.usdtJettonWalletCode)
+        .storeRef(config.jettonWalletGovernedCode)
         .storeRef(config.jettonWalletCode)
+        .storeUint(config.rootPrice, 64)
+        .storeAddress(config.usdtTlpMaster)
+        .storeAddress(config.usdtSlpMaster)
+        .storeAddress(config.evaaMaster)
+        .storeAddress(config.tradoorMaster)
+        .storeAddress(config.stormVault)
+        .storeAddress(config.recentSender)
+        .storeUint(config.evaaMasterReceive, 64)
+        .storeUint(config.tradoorMasterReceive, 64)
+        .storeUint(config.stormVaultReceive, 64)
+        .storeUint(config.usdtTlpReceive, 64)
+        .storeUint(config.usdtSlpReceive, 64)
         .endCell();
 }
 
@@ -54,20 +78,26 @@ export class Main implements Contract {
 
     async getData(provider: ContractProvider) {
         const result = (await provider.get('get_main_data', [])).stack
-        let usdtJettonMasterAddress = result.readAddress();
-        let rootMasterAddress = result.readAddress();
-        let userScCode = result.readCell();
-        let adminAddress = result.readAddress();
-        let usdtJettonWalletCode = result.readCell();
-        let jettonWalletCode = result.readCell();
 
         return {
-            usdtJettonMasterAddress,
-            rootMasterAddress,
-            userScCode,
-            adminAddress,
-            usdtJettonWalletCode,
-            jettonWalletCode,
+            usdtJettonMasterAddress: result.readAddress(),
+            rootMasterAddress: result.readAddress(),
+            userScCode: result.readCell(),
+            adminAddress: result.readAddress(),
+            usdtJettonWalletCode: result.readCell(),
+            jettonWalletCode: result.readCell(),
+            rootPrice: result.readBigNumber(),
+            usdtTlpMaster: result.readAddress(),
+            usdtSlpMaster: result.readAddress(),
+            evaaMaster: result.readAddress(),
+            tradoorMaster: result.readAddress(),
+            stormVault: result.readAddress(),
+            recentSender: result.readAddress(),
+            evaaMasterReceive: result.readBigNumber(),
+            tradoorMasterReceive: result.readBigNumber(),
+            stormVaultReceive: result.readBigNumber(),
+            usdtTlpReceive: result.readBigNumber(),
+            usdtSlpReceive: result.readBigNumber()
         }
     }
 }
