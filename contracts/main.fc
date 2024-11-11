@@ -1,3 +1,7 @@
+;; ----------------------------------------------------------------------------------------------------------------------------
+;; The main entrypoint sc who send usdt to protocols, control root price, mint user sc's, mint beetroot for users & send yields
+;; ----------------------------------------------------------------------------------------------------------------------------
+
 #include "imports/stdlib.fc";
 #include "imports/op-codes.fc";
 #include "imports/jetton-utils.fc";
@@ -155,13 +159,16 @@
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
 
         if (is_address_none(owner_address)) {
+            ;; ignore emptry addresses
             return ();
         }
 
         mint_user_sc(query_id, jetton_amount, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
 
+        ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
         mint_tokens(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
 
+        ;; comission
         send_tokens(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000);
         return ();
     }
@@ -180,6 +187,7 @@
         cell state_init = calculate_jetton_wallet_governed_state_init(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
         slice usdt_jetton_wallet_address = calculate_jetton_wallet_governed_address(state_init);
 
+        ;; calculating yield at apy of 15%
         int yield = (root_price * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
         send_tokens(
             total_deposit_amount + yield,
@@ -221,7 +229,7 @@
     return load_data();
 }
 
-(slice) get_user_sc_address(slice admin_address) method_id {
+slice get_user_sc_address(slice admin_address) method_id {
     (_, slice root_master_address, cell user_sc_code, _, _, cell jetton_wallet_code, _) = load_data();
     cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
     return calculate_sc_address(state_init);
