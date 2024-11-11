@@ -37,8 +37,8 @@
 () send_to_jetton_wallet(slice to_address, cell jetton_wallet_code, int ton_amount, cell master_msg, int need_state_init) impure inline {
     raw_reserve(ONE_TON, RESERVE_REGULAR); ;; reserve for storage fees
 
-    cell state_init = calculate_jetton_wallet_state_init(to_address, my_address(), jetton_wallet_code);
-    slice to_wallet_address = calculate_jetton_wallet_address(state_init);
+    cell state_init = calculate_jetton_wallet_governed_state_init(to_address, my_address(), jetton_wallet_code);
+    slice to_wallet_address = calculate_jetton_wallet_governed_address(state_init);
 
     ;; build MessageRelaxed, see TL-B layout in stdlib.fc#L733
     var msg = begin_cell()
@@ -110,7 +110,7 @@
         int jetton_amount = in_msg_body~load_coins();
         slice from_address = in_msg_body~load_msg_addr();
         throw_unless(error::not_valid_wallet,
-            equal_slices_bits(calculate_user_jetton_wallet_address(from_address, my_address(), jetton_wallet_code), sender_address)
+            equal_slices_bits(calculate_user_jetton_wallet_governed_address(from_address, my_address(), jetton_wallet_code), sender_address)
         );
         save_data(total_supply - jetton_amount, admin_address, next_admin_address, jetton_wallet_code, metadata_uri);
         slice response_address = in_msg_body~load_msg_addr();
@@ -150,7 +150,7 @@
         .store_query_id(query_id);
 
         if (is_same_workchain(owner_address)) {
-            msg = msg.store_slice(calculate_user_jetton_wallet_address(owner_address, my_address(), jetton_wallet_code));
+            msg = msg.store_slice(calculate_user_jetton_wallet_governed_address(owner_address, my_address(), jetton_wallet_code));
         } else {
             msg = msg.store_address_none();
         }
@@ -254,7 +254,7 @@ cell build_content_cell(slice metadata_uri) inline {
 
 slice get_wallet_address(slice owner_address) method_id {
     (int total_supply, slice admin_address, slice next_admin_address, cell jetton_wallet_code, cell metadata_uri) = load_data();
-    return calculate_user_jetton_wallet_address(owner_address, my_address(), jetton_wallet_code);
+    return calculate_user_jetton_wallet_governed_address(owner_address, my_address(), jetton_wallet_code);
 }
 
 slice get_next_admin_address() method_id {
