@@ -11,9 +11,9 @@
         ds~load_msg_addr(),
         ds~load_msg_addr(), 
         ds~load_ref(),
-        ds~load_uint(64),
-        ds~load_uint(64),
-        ds~load_uint(64)
+        ds~load_coins(),
+        ds~load_coins(),
+        ds~load_coins()
     );
 }
 
@@ -34,9 +34,9 @@
         .store_slice(main_sc_address)
         .store_slice(root_master_address)
         .store_ref(jetton_wallet_code)
-        .store_uint(usdt_slp_amount, 64)
-        .store_uint(usdt_tlp_amount, 64)
-        .store_uint(total_deposit_amount, 64)
+        .store_coins(usdt_slp_amount)
+        .store_coins(usdt_tlp_amount)
+        .store_coins(total_deposit_amount)
         .end_cell()
     );
 }
@@ -94,9 +94,9 @@
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
 
         int new_deposit_timestamp = in_msg_body~load_uint(32);
-        int new_total_deposit_amount = in_msg_body~load_uint(64);
-        int new_usdt_slp_amount = in_msg_body~load_uint(64);
-        int new_usdt_tlp_amount = in_msg_body~load_uint(64);
+        int new_total_deposit_amount = in_msg_body~load_coins();
+        int new_usdt_slp_amount = in_msg_body~load_coins();
+        int new_usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
         if (total_deposit_amount > 0) {
