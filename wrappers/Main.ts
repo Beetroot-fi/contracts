@@ -43,6 +43,22 @@ export class Main implements Contract {
         });
     }
 
+    async sendUpdateRootPrice(provider: ContractProvider, via: Sender, value: bigint, newRootPrice: bigint) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell().storeUint(344, 32).storeUint(newRootPrice, 64).endCell(),
+        });
+    }
+
+    async sendUpgradeContract(provider: ContractProvider, via: Sender, value: bigint, newCode: Cell, newData: Cell) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell().storeUint(999, 32).storeRef(newData).storeRef(newCode).endCell()
+        })
+    }
+
     async getUserScAddress(provider: ContractProvider, ownerAddress: Address): Promise<Address> {
         const result = (await provider.get('get_user_sc_address', [
             {
