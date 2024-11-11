@@ -8,17 +8,6 @@ export type MainConfig = {
     jettonWalletGovernedCode: Cell,
     jettonWalletCode: Cell,
     rootPrice: bigint,
-    usdtTlpMaster: Address,
-    usdtSlpMaster: Address,
-    evaaMaster: Address,
-    tradoorMaster: Address,
-    stormVault: Address,
-    recentSender: Address,
-    evaaMasterReceive: bigint,
-    tradoorMasterReceive: bigint,
-    stormVaultReceive: bigint,
-    usdtTlpReceive: bigint,
-    usdtSlpReceive: bigint,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -30,17 +19,6 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeRef(config.jettonWalletGovernedCode)
         .storeRef(config.jettonWalletCode)
         .storeUint(config.rootPrice, 64)
-        .storeAddress(config.usdtTlpMaster)
-        .storeAddress(config.usdtSlpMaster)
-        .storeAddress(config.evaaMaster)
-        .storeAddress(config.tradoorMaster)
-        .storeAddress(config.stormVault)
-        .storeAddress(config.recentSender)
-        .storeUint(config.evaaMasterReceive, 64)
-        .storeUint(config.tradoorMasterReceive, 64)
-        .storeUint(config.stormVaultReceive, 64)
-        .storeUint(config.usdtTlpReceive, 64)
-        .storeUint(config.usdtSlpReceive, 64)
         .endCell();
 }
 
@@ -87,17 +65,6 @@ export class Main implements Contract {
             usdtJettonWalletCode: result.readCell(),
             jettonWalletCode: result.readCell(),
             rootPrice: result.readBigNumber(),
-            usdtTlpMaster: result.readAddress(),
-            usdtSlpMaster: result.readAddress(),
-            evaaMaster: result.readAddress(),
-            tradoorMaster: result.readAddress(),
-            stormVault: result.readAddress(),
-            recentSender: result.readAddress(),
-            evaaMasterReceive: result.readBigNumber(),
-            tradoorMasterReceive: result.readBigNumber(),
-            stormVaultReceive: result.readBigNumber(),
-            usdtTlpReceive: result.readBigNumber(),
-            usdtSlpReceive: result.readBigNumber()
         }
     }
 }
