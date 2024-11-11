@@ -19,17 +19,6 @@ export async function run(provider: NetworkProvider) {
         jettonWalletGovernedCode: jettonWalletGovernedCode,
         jettonWalletCode: jettonWalletCode,
         rootPrice: 100n,
-        usdtTlpMaster: Address.parse(''),
-        usdtSlpMaster: Address.parse(''),
-        evaaMaster: Address.parse(''),
-        tradoorMaster: Address.parse(''),
-        stormVault: Address.parse(''),
-        recentSender: Address.parse(''),
-        evaaMasterReceive: 0n,
-        tradoorMasterReceive: 0n,
-        stormVaultReceive: 0n,
-        usdtTlpReceive: 0n,
-        usdtSlpReceive: 0n,
     }, await compile('Main')));
 
     await main.sendDeploy(provider.sender(), toNano('0.05'));
