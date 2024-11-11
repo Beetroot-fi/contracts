@@ -108,9 +108,9 @@
                     .store_uint(op::deposit, 32)
                     .store_uint(query_id, 64)
                     .store_uint(now(), 32) ;; deposit_timestamp
-                    .store_uint(total_deposit_amount, 64)
-                    .store_uint(usdt_slp_amount, 64)
-                    .store_uint(usdt_tlp_amount, 64)
+                    .store_coins(total_deposit_amount)
+                    .store_coins(usdt_slp_amount)
+                    .store_coins(usdt_tlp_amount)
                     .end_cell();
     cell mint_user_sc_msg = begin_cell()
                             .store_uint(0x10, 6)
@@ -128,6 +128,10 @@
     int flags = cs~load_uint(4);
     if (flags & 1) {
         ;; ignore bounced messages
+        return ();
+    }
+    if (in_msg_body.slice_bits() < 32) {
+        ;; ignore simple transfers
         return ();
     }
     slice sender_address = cs~load_msg_addr();
@@ -150,6 +154,10 @@
 
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
 
+        if (is_address_none(owner_address)) {
+            return ();
+        }
+
         mint_user_sc(query_id, jetton_amount, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
 
         mint_tokens(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
@@ -160,9 +168,9 @@
     if (op == op::withdraw_internal) {
         slice admin_address = in_msg_body~load_msg_addr();
         int deposit_timestamp = in_msg_body~load_uint(32);
-        int total_deposit_amount = in_msg_body~load_uint(64);
-        int usdt_slp_amount = in_msg_body~load_uint(64);
-        int usdt_tlp_amount = in_msg_body~load_uint(64);
+        int total_deposit_amount = in_msg_body~load_coins();
+        int usdt_slp_amount = in_msg_body~load_coins();
+        int usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
         cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);

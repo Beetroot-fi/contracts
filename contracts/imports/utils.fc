@@ -26,9 +26,9 @@ cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice 
                         .store_slice(main_sc_address)
                         .store_slice(root_master_address)
                         .store_ref(jetton_wallet_code)
-                        .store_uint(0, 64)
-                        .store_uint(0, 64)
-                        .store_uint(0, 64)
+                        .store_coins(0)
+                        .store_coins(0)
+                        .store_coins(0)
                         .end_cell();
     return begin_cell()
             .store_uint(6, 5)
