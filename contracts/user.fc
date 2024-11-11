@@ -131,9 +131,26 @@
 
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        burn_tokens(jetton_amount, my_jetton_wallet_address, query_id, 300000000); ;; 0.3 tons
-        
-        withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
+        burn_jettons(jetton_amount, my_jetton_wallet_address, query_id, 300000000); ;; 0.3 tons
+
+        int withdraw_amount = jetton_amount / 10;
+        withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, withdraw_amount, usdt_slp_amount, usdt_tlp_amount);
+
+        total_deposit_amount -= withdraw_amount;
+        if (total_deposit_amount == 0) {
+            save_data(0, admin_address, main_sc_address, root_master_address, jetton_wallet_code, 0, 0, 0);
+        } else {
+            save_data(
+                deposit_timestamp,
+                admin_address,
+                main_sc_address,
+                root_master_address,
+                jetton_wallet_code,
+                usdt_slp_amount,
+                usdt_tlp_amount,
+                total_deposit_amount
+            );
+        }
         return();
     }
     throw(err::unknown_op_code);

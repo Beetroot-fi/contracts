@@ -1,7 +1,7 @@
 int workchain() asm "0 PUSHINT";
 
 
-() burn_tokens(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value) impure inline {
+() burn_jettons(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::burn, 32)
                     .store_uint(query_id, 64)
