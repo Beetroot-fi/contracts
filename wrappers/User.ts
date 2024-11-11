@@ -6,9 +6,6 @@ export type UserConfig = {
     mainScAddress: Address,
     rootMasterAddress: Address,
     jettonWalletCode: Cell,
-    usdtSlpAmount: bigint,
-    usdtTlpAmount: bigint,
-    totalDepositAmount: bigint,
 };
 
 export function userConfigToCell(config: UserConfig): Cell {
@@ -18,9 +15,9 @@ export function userConfigToCell(config: UserConfig): Cell {
         .storeAddress(config.mainScAddress)
         .storeAddress(config.rootMasterAddress)
         .storeRef(config.jettonWalletCode)
-        .storeUint(config.usdtSlpAmount, 64)
-        .storeUint(config.usdtTlpAmount, 64)
-        .storeUint(config.totalDepositAmount, 64)
+        .storeUint(0n, 64)
+        .storeUint(0n, 64)
+        .storeUint(0n, 64)
         .endCell();
 }
 
