@@ -107,14 +107,7 @@
         int new_usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
-        ;; if its not first deposit, store yield for last deposit & add to new deposit
-        if (total_deposit_amount > 0) {
-            int yield = (100 * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
-            total_deposit_amount += yield;
-            total_deposit_amount += new_total_deposit_amount;
-            deposit_timestamp = now();
-        } else {
-            total_deposit_amount = new_total_deposit_amount;
+        if (deposit_timestamp == 0) {
             deposit_timestamp = new_deposit_timestamp;
         }
 
@@ -126,7 +119,7 @@
             jetton_wallet_code,
             new_usdt_slp_amount + usdt_slp_amount,
             new_usdt_tlp_amount + usdt_tlp_amount,
-            total_deposit_amount
+            total_deposit_amount + new_total_deposit_amount
         );
         return();
     }
@@ -142,8 +135,7 @@
         slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         burn_jettons(jetton_amount, my_jetton_wallet_address, query_id, 300000000); ;; 0.3 tons
 
-        ;; TODO: FIX MORE THAN ONE WITHDRAW
-        ;; divide by 10 cause we have ROOT have 9 decimals & ROOT ~ 1000 USDT
+        ;; divide by 10 cause ROOT have 9 decimals & ROOT ~ 100 USDT
         int withdraw_amount = jetton_amount / 10;
         withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, withdraw_amount, usdt_slp_amount, usdt_tlp_amount);
 
