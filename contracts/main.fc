@@ -43,7 +43,7 @@
     );
 }
 
-() mint_tokens(int query_id, int balance, slice owner_address, slice root_master_address) impure inline {
+() mint_jettons(int query_id, int balance, slice owner_address, slice root_master_address) impure inline {
     cell internal_transfer_body = begin_cell()
                                 .store_uint(op::internal_transfer, 32)
                                 .store_uint(query_id, 64)
@@ -53,7 +53,7 @@
                                 .store_coins(1000000) ;; 0.001 tons
                                 .store_uint(0, 1)
                                 .end_cell();
-    slice mint_token_body = begin_cell()
+    slice jetton_mint_body = begin_cell()
                             .store_uint(op::mint_token, 32)
                             .store_uint(query_id, 64)
                             .store_slice(owner_address)
@@ -61,14 +61,14 @@
                             .store_ref(internal_transfer_body)
                             .end_cell()
                             .begin_parse();
-    cell mint_token_msg = begin_cell()
+    cell jetton_mint_msg = begin_cell()
                         .store_uint(0x18, 6) 
                         .store_slice(root_master_address)
                         .store_coins(30000000) ;; 0.03 tons
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                        .store_slice(mint_token_body)
+                        .store_slice(jetton_mint_body)
                         .end_cell();
-    send_raw_message(mint_token_msg, SEND_MODE_REGULAR);
+    send_raw_message(jetton_mint_msg, SEND_MODE_REGULAR);
 }
 
 () mint_user_sc(
@@ -140,7 +140,7 @@
         mint_user_sc(query_id, jetton_amount, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
 
         ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
-        mint_tokens(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
+        mint_jettons(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
 
         ;; comission
         send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000);
