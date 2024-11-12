@@ -6,10 +6,10 @@ import { jettonWalletCodeFromLibrary } from '../helpers/utils';
 export async function run(provider: NetworkProvider) {
     const userScCode = await compile('User');
 
-    const jettonWalletGovernedCodeRaw = await compile('JettonWallet');
+    const jettonWalletGovernedCodeRaw = await compile('JettonWalletGoverned');
     const jettonWalletGovernedCode = jettonWalletCodeFromLibrary(jettonWalletGovernedCodeRaw);
 
-    const jettonWalletCode = await compile('JettonWalletCommon');
+    const jettonWalletCode = await compile('JettonWallet');
 
     const main = provider.open(Main.createFromConfig({
         usdtJettonMasterAddress: Address.parse(''),

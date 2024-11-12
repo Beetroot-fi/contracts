@@ -1,7 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { JettonWalletCommon } from '../wrappers/JettonWalletCommon';
-import { beginCell, Cell, Dictionary, toNano } from '@ton/core';
 import { JettonWallet } from '../wrappers/JettonWallet';
+import { beginCell, Cell, Dictionary, toNano } from '@ton/core';
+import { JettonWalletGoverned } from '../wrappers/JettonWalletGoverned';
 import { JettonMaster } from '../wrappers/JettonMaster';
 import { JettonMinter } from "../wrappers/Stablecoin"
 import { compile } from '@ton/blueprint';
@@ -43,9 +43,9 @@ describe('Main', () => {
     let deployer: SandboxContract<TreasuryContract>;
     let main: SandboxContract<Main>;
     let usdtMaster: SandboxContract<JettonMinter>;
-    let deployerUsdtJettonWallet: SandboxContract<JettonWallet>;
-    let mainUsdtJettonWallet: SandboxContract<JettonWallet>;
-    let deployerBeetrootJettonWallet: SandboxContract<JettonWalletCommon>;
+    let deployerUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
+    let mainUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
+    let deployerBeetrootJettonWallet: SandboxContract<JettonWallet>;
     let beetrootMaster: SandboxContract<JettonMaster>;
     let deployerUserSc: SandboxContract<User>;
     let jettonWalletGovernedCode: Cell;
@@ -60,7 +60,7 @@ describe('Main', () => {
         deployer = await blockchain.treasury('deployer');
 
         // jetton wallet governed
-        const jettonWalletCodeGovernedRaw = await compile('JettonWallet');
+        const jettonWalletCodeGovernedRaw = await compile('JettonWalletGoverned');
 
         // install libs on blockchain
         const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
@@ -71,7 +71,7 @@ describe('Main', () => {
         jettonWalletGovernedCode = new Cell({ exotic: true, bits: lib_prep.bits, refs: lib_prep.refs });
 
         // jetton wallet
-        jettonWalletCode = await compile('JettonWalletCommon');
+        jettonWalletCode = await compile('JettonWallet');
 
         // deploy usdt master
         usdtMaster = blockchain.openContract(JettonMinter.createFromConfig({
@@ -100,7 +100,7 @@ describe('Main', () => {
             success: true,
             op: opCodes.mint_usdt,
         });
-        deployerUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
+        deployerUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
             ownerAddress: deployer.address,
             jettonMasterAddress: usdtMaster.address,
         }, jettonWalletGovernedCode));
@@ -174,7 +174,7 @@ describe('Main', () => {
         expect(beetrootMasterData.adminAddress).toEqualAddress(main.address);
 
         // getting main usdt jetton wallet
-        mainUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
+        mainUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
             ownerAddress: main.address,
             jettonMasterAddress: usdtMaster.address,
         }, jettonWalletGovernedCode));
@@ -212,7 +212,7 @@ describe('Main', () => {
 
         // getting main beetroot jetton wallet
         let deployerBeetrootJettonWalletAddress = await beetrootMaster.getWalletAddress(deployer.address);
-        deployerBeetrootJettonWallet = blockchain.openContract(JettonWalletCommon.createFromAddress(deployerBeetrootJettonWalletAddress));
+        deployerBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(deployerBeetrootJettonWalletAddress));
 
         // getting deployer user sc
         deployerUserSc = blockchain.openContract(User.createFromConfig({
@@ -342,11 +342,11 @@ describe('Main', () => {
             success: true,
             op: opCodes.transfer,
         });
-        let deployerUserScBeetrootJettonWallet = blockchain.openContract(JettonWalletCommon.createFromConfig({
+        let deployerUserScBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
             ownerAddress: deployerUserSc.address,
             jettonMasterAddress: beetrootMaster.address,
             jettonWalletCode: jettonWalletCode,
-        }, await compile('JettonWalletCommon')));
+        }, await compile('JettonWallet')));
         expect(result.transactions).toHaveTransaction({
             from: deployerBeetrootJettonWallet.address,
             to: deployerUserScBeetrootJettonWallet.address,
@@ -449,11 +449,11 @@ describe('Main', () => {
             success: true,
             op: opCodes.transfer,
         });
-        let deployerUserScBeetrootJettonWallet = blockchain.openContract(JettonWalletCommon.createFromConfig({
+        let deployerUserScBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
             ownerAddress: deployerUserSc.address,
             jettonMasterAddress: beetrootMaster.address,
             jettonWalletCode: jettonWalletCode,
-        }, await compile('JettonWalletCommon')));
+        }, await compile('JettonWallet')));
         expect(result.transactions).toHaveTransaction({
             from: deployerBeetrootJettonWallet.address,
             to: deployerUserScBeetrootJettonWallet.address,
@@ -747,11 +747,11 @@ describe('Main', () => {
         }, await compile('JettonMaster')));
 
         // deployer jetton jetton walet
-        let deployerJettonJettonWallet = blockchain.openContract(JettonWalletCommon.createFromConfig({
+        let deployerJettonJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
             ownerAddress: deployer.address,
             jettonMasterAddress: jetton.address,
             jettonWalletCode: jettonWalletCode,
-        }, await compile('JettonWalletCommon')));
+        }, await compile('JettonWallet')));
 
         // mint jetton for deployer
         const mintJettonForDeployerResult = await jetton.sendMint(
@@ -782,11 +782,11 @@ describe('Main', () => {
             op: opCodes.transfer_notification,
         });
 
-        let mainJettonJettonWallet = blockchain.openContract(JettonWalletCommon.createFromConfig({
+        let mainJettonJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
             ownerAddress: main.address,
             jettonMasterAddress: jetton.address,
             jettonWalletCode: jettonWalletCode,
-        }, await compile('JettonWalletCommon')));
+        }, await compile('JettonWallet')));
 
         const result = await deployerJettonJettonWallet.sendTransfer(
             deployer.getSender(),
@@ -879,7 +879,7 @@ describe('Main', () => {
     it('should not deposit if not main', async () => {
         let user = await blockchain.treasury('user');
 
-        let userUsdtJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(await usdtMaster.getWalletAddress(user.address)));
+        let userUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromAddress(await usdtMaster.getWalletAddress(user.address)));
 
         const mintUsdtForUserResult = await usdtMaster.sendMint(
             deployer.getSender(),
@@ -964,11 +964,11 @@ describe('Main', () => {
             jettonWalletCode: jettonWalletCode,
         }, await compile('JettonMaster')));
 
-        let userJettonJettonWallet = blockchain.openContract(JettonWalletCommon.createFromConfig({
+        let userJettonJettonWallet = blockchain.openContract(JettonWallet.createFromConfig({
             ownerAddress: user.address,
             jettonMasterAddress: jetton.address,
             jettonWalletCode: jettonWalletCode,
-        }, await compile('JettonWalletCommon')));
+        }, await compile('JettonWallet')));
 
         const mintJettonForUserResult = await jetton.sendMint(
             deployer.getSender(),

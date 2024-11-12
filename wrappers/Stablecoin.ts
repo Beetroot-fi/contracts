@@ -9,8 +9,8 @@ import {
     SendMode, Slice,
     toNano
 } from '@ton/core';
-import { JettonWallet } from './JettonWallet';
-import { Op } from './JettonWallet';
+import { JettonWalletGoverned } from './JettonWalletGoverned';
+import { Op } from './JettonWalletGoverned';
 
 export type JettonMinterContent = {
     uri: string
@@ -372,7 +372,7 @@ export class JettonMinter implements Contract {
         value: bigint = toNano('0.1'),
         query_id: bigint = 0n) {
 
-        const transferMessage = JettonWallet.transferMessage(transfer_amount,
+        const transferMessage = JettonWalletGoverned.transferMessage(transfer_amount,
             to,
             to,
             custom_payload,
@@ -438,7 +438,7 @@ export class JettonMinter implements Contract {
         return beginCell().storeUint(Op.call_to, 32).storeUint(query_id, 64)
             .storeAddress(to)
             .storeCoins(value)
-            .storeRef(JettonWallet.burnMessage(burn_amount, response, null))
+            .storeRef(JettonWalletGoverned.burnMessage(burn_amount, response, null))
             .endCell()
     }
 
