@@ -1,9 +1,13 @@
+;; ----------------------------------------------------------------------------------------
+;; User contract for storing metadata about user deposits and for further yield calculation
+;; ----------------------------------------------------------------------------------------
+
 #include "imports/stdlib.fc";
 #include "imports/op-codes.fc";
 #include "imports/utils.fc";
 #include "imports/jetton-wallet-common-utils.fc";
 
-(int, slice, slice, slice, cell, int, int, int) load_data() inline {
+(int, slice, slice, slice, cell, int, int, int) load_data() inline_ref {
     slice ds = get_data().begin_parse();
     return (
         ds~load_uint(32), 
@@ -26,7 +30,7 @@
     int usdt_slp_amount,
     int usdt_tlp_amount,
     int total_deposit_amount
-) impure inline {
+) impure inline_ref {
     set_data(
         begin_cell()
         .store_uint(deposit_timestamp, 32)
@@ -66,7 +70,7 @@
                 .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
                 .store_ref(msg_body)
                 .end_cell();
-    send_raw_message(msg ,SEND_MODE_REGULAR);
+    send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -74,6 +78,10 @@
     int flags = cs~load_uint(4);
     if (flags & 1) {
         ;; ignore bounced messages
+        return ();
+    }
+    if (in_msg_body.slice_bits() < 32) {
+        ;; ignore simple transfers
         return ();
     }
     slice sender_address = cs~load_msg_addr();
@@ -99,6 +107,7 @@
         int new_usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
+        ;; if its not first deposit, store yield for last deposit & add to new deposit
         if (total_deposit_amount > 0) {
             int yield = (100 * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
             total_deposit_amount += yield;
@@ -127,12 +136,14 @@
         throw_unless(err::unknown_token, equal_slices(sender_address, jetton_wallet_address));
 
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
-        throw_unless(err::not_owner, equal_slices(owner_address, admin_address));
+        throw_unless(err::not_admin, equal_slices(owner_address, admin_address));
 
         cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
         slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
         burn_jettons(jetton_amount, my_jetton_wallet_address, query_id, 300000000); ;; 0.3 tons
 
+        ;; TODO: FIX MORE THAN ONE WITHDRAW
+        ;; divide by 10 cause we have ROOT have 9 decimals & ROOT ~ 1000 USDT
         int withdraw_amount = jetton_amount / 10;
         withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, withdraw_amount, usdt_slp_amount, usdt_tlp_amount);
 
