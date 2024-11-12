@@ -43,31 +43,6 @@
     );
 }
 
-() send_tokens(int jetton_amount, slice owner_address, int query_id, slice jetton_wallet_address, cell fwd_payload, int fwd_ton_amount, int msg_value) impure inline_ref {
-    builder msg_body = begin_cell()
-                    .store_uint(op::transfer, 32)
-                    .store_uint(query_id, 64)
-                    .store_coins(jetton_amount)
-                    .store_slice(owner_address)
-                    .store_slice(my_address())
-                    .store_uint(0, 1) 
-                    .store_coins(fwd_ton_amount); 
-    if (fwd_payload.begin_parse().slice_empty?()) {
-        msg_body~store_uint(0, 1);
-    } else {
-        msg_body~store_uint(1, 1);
-        msg_body~store_ref(fwd_payload);
-    }
-    cell msg = begin_cell()
-                .store_uint(0x18, 6)
-                .store_slice(jetton_wallet_address)
-                .store_coins(msg_value) 
-                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_ref(msg_body.end_cell())
-               .end_cell();
-    send_raw_message(msg, SEND_MODE_REGULAR);
-}
-
 () mint_tokens(int query_id, int balance, slice owner_address, slice root_master_address) impure inline {
     cell internal_transfer_body = begin_cell()
                                 .store_uint(op::internal_transfer, 32)
@@ -168,7 +143,7 @@
         mint_tokens(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
 
         ;; comission
-        send_tokens(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000);
+        send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000);
         return ();
     }
     if (op == op::withdraw_internal) {
@@ -188,7 +163,7 @@
 
         ;; calculating yield at apy of 15%
         int yield = (root_price * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
-        send_tokens(
+        send_jettons(
             total_deposit_amount + yield,
             admin_address,
             query_id,
