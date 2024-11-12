@@ -8,7 +8,7 @@
 #include "imports/utils.fc";
 #include "imports/jetton-wallet-common-utils.fc";
 
-(slice, slice, cell, slice, cell, cell, int) load_data() inline {
+(slice, slice, cell, slice, cell, cell, int) load_data() inline_ref {
     slice ds = get_data().begin_parse();
     return (
         ds~load_msg_addr(),
@@ -43,7 +43,7 @@
     );
 }
 
-() send_tokens(int jetton_amount, slice owner_address, int query_id, slice jetton_wallet_address, cell fwd_payload, int fwd_ton_amount, int msg_value) impure inline {
+() send_tokens(int jetton_amount, slice owner_address, int query_id, slice jetton_wallet_address, cell fwd_payload, int fwd_ton_amount, int msg_value) impure inline_ref {
     builder msg_body = begin_cell()
                     .store_uint(op::transfer, 32)
                     .store_uint(query_id, 64)
@@ -139,8 +139,7 @@
         return ();
     }
     slice sender_address = cs~load_msg_addr();
-    int op = in_msg_body~load_uint(32);
-    int query_id = in_msg_body~load_uint(64);
+    (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
     (
         slice usdt_jetton_master_address,
         slice root_master_address,
@@ -201,7 +200,7 @@
         return();
     }
     if (op == op::upgrade_contract) {
-        throw_unless(error::not_owner, equal_slices(sender_address, admin_address));
+        throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
         (cell new_data, cell new_code) = (in_msg_body~load_ref(), in_msg_body~load_ref());
         in_msg_body.end_parse();
         set_data(new_data);
@@ -209,7 +208,7 @@
         return ();
     }
     if (op == op::update_root_price) {
-        throw_unless(error::not_owner, equal_slices(sender_address, admin_address));
+        throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
         int new_root_price = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
         save_data(
