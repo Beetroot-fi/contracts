@@ -143,7 +143,7 @@
         mint_jettons(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
 
         ;; comission
-        send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000);
+        send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000, owner_address);
         return ();
     }
     if (op == op::withdraw_internal) {
@@ -170,7 +170,8 @@
             usdt_jetton_wallet_address,
             begin_cell().end_cell(),
             1000000, ;; 0.001 tons
-            50000000 ;; 0.05 tons       
+            50000000, ;; 0.05 tons  
+            admin_address      
         );
         return();
     }

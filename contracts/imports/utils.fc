@@ -1,12 +1,12 @@
 int workchain() asm "0 PUSHINT";
 
 
-() burn_jettons(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value) impure inline {
+() burn_jettons(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value, slice response_address) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::burn, 32)
                     .store_uint(query_id, 64)
                     .store_coins(jetton_amount)
-                    .store_slice(my_address())
+                    .store_slice(response_address)
                     .store_uint(0, 1)
                     .end_cell();
     cell msg = begin_cell()
@@ -19,13 +19,22 @@ int workchain() asm "0 PUSHINT";
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
-() send_jettons(int jetton_amount, slice owner_address, int query_id, slice jetton_wallet_address, cell fwd_payload, int fwd_ton_amount, int msg_value) impure inline_ref {
+() send_jettons(
+    int jetton_amount,
+    slice owner_address,
+    int query_id,
+    slice jetton_wallet_address,
+    cell fwd_payload,
+    int fwd_ton_amount,
+    int msg_value,
+    slice response_address
+) impure inline_ref {
     builder msg_body = begin_cell()
                     .store_uint(op::transfer, 32)
                     .store_uint(query_id, 64)
                     .store_coins(jetton_amount)
                     .store_slice(owner_address)
-                    .store_slice(my_address())
+                    .store_slice(response_address)
                     .store_uint(0, 1) 
                     .store_coins(fwd_ton_amount); 
     if (fwd_payload.begin_parse().slice_empty?()) {
