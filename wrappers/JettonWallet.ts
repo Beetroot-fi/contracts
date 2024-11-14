@@ -36,6 +36,26 @@ export class JettonWallet implements Contract {
         });
     }
 
+    async sendBurn(provider: ContractProvider, via: Sender, value: bigint,
+        opts: {
+            queryId: bigint;
+            jettonAmount: bigint;
+            responseAddress: Address;
+        }
+    ) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(0x595f07bc, 32)
+                .storeUint(opts.queryId, 64)
+                .storeCoins(opts.jettonAmount)
+                .storeAddress(opts.responseAddress)
+                .storeUint(0, 1)
+                .endCell(),
+        })
+    }
+
     async sendTransfer(provider: ContractProvider, via: Sender,
         opts: {
             value: bigint;
@@ -43,6 +63,7 @@ export class JettonWallet implements Contract {
             queryId: number;
             fwdAmount: bigint;
             jettonAmount: bigint;
+            forwardPayload: Cell | null,
         }
     ) {
         await provider.internal(via, {
@@ -56,7 +77,7 @@ export class JettonWallet implements Contract {
                 .storeAddress(via.address)
                 .storeUint(0, 1)
                 .storeCoins(opts.fwdAmount)
-                .storeUint(0, 1)
+                .storeMaybeRef(opts.forwardPayload)
                 .endCell(),
         });
     }
