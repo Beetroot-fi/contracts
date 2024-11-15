@@ -137,7 +137,7 @@
             return ();
         }
 
-        mint_user_sc(query_id, jetton_amount, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
+        mint_user_sc(query_id, jetton_amount - 1_000_000, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
 
         ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
         mint_jettons(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
