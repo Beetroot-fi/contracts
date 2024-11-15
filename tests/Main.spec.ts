@@ -334,6 +334,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('2'),
+                forwardPayload: null,
             }
         );
         expect(result.transactions).toHaveTransaction({
@@ -441,6 +442,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('2'),
+                forwardPayload: null,
             }
         );
         expect(result.transactions).toHaveTransaction({
@@ -552,6 +554,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('2'),
+                forwardPayload: null,
             }
         );
 
@@ -575,6 +578,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('4'),
+                forwardPayload: null,
             }
         );
 
@@ -698,6 +702,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('2'),
+                forwardPayload: null,
             }
         );
 
@@ -721,6 +726,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.35'),
                 jettonAmount: toNano('4'),
+                forwardPayload: null,
             }
         );
 
@@ -796,6 +802,7 @@ describe('Main', () => {
                 queryId: 0,
                 fwdAmount: toNano('0.3'),
                 jettonAmount: toNano('100'),
+                forwardPayload: null,
             }
         );
         expect(result.transactions).toHaveTransaction({
