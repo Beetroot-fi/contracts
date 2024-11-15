@@ -227,7 +227,7 @@ describe('Main', () => {
         const result = await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(200 * 1e6),
+            BigInt(201 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -315,7 +315,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(200 * 1e6),
+            BigInt(201 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -409,7 +409,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(200 * 1e6),
+            BigInt(201 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -424,7 +424,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(400 * 1e6),
+            BigInt(401 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -517,7 +517,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(200 * 1e6),
+            BigInt(201 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -532,7 +532,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(400 * 1e6),
+            BigInt(401 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -680,7 +680,7 @@ describe('Main', () => {
         await deployerUsdtJettonWallet.sendTransfer(
             deployer.getSender(),
             toNano('0.4'),
-            BigInt(600 * 1e6),
+            BigInt(601 * 1e6),
             main.address,
             deployer.address,
             null,
@@ -688,6 +688,7 @@ describe('Main', () => {
             null
         );
         expect((await deployerUserSc.getUserData()).totalDepositAmount).toEqual(BigInt(600 * 1e6));
+        expect((await deployerBeetrootJettonWallet.getWalletData()).balance).toEqual(toNano('6'));
 
         blockchain.now = 259700; // 3 days
 
