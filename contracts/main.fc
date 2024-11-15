@@ -137,10 +137,11 @@
             return ();
         }
 
-        mint_user_sc(query_id, jetton_amount - 1_000_000, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
+        mint_user_sc(query_id, jetton_amount - 1000000, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
 
         ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
-        mint_jettons(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
+        int mint_amount = ((jetton_amount / root_price) * 1000) - 10000000;
+        mint_jettons(query_id, mint_amount, owner_address, root_master_address);
 
         ;; comission
         send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000, owner_address);
