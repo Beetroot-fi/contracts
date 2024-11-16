@@ -7,10 +7,9 @@
 #include "imports/utils.fc";
 #include "imports/jetton-wallet-utils.fc";
 
-(int, slice, slice, slice, cell, int, int, int) load_data() inline_ref {
+(slice, slice, slice, cell, int, int, int) load_data() inline_ref {
     slice ds = get_data().begin_parse();
     return (
-        ds~load_uint(32), 
         ds~load_msg_addr(), 
         ds~load_msg_addr(),
         ds~load_msg_addr(), 
@@ -22,7 +21,6 @@
 }
 
 () save_data(
-    int deposit_timestamp,
     slice admin_address,
     slice main_sc_address,
     slice root_master_address,
@@ -33,7 +31,6 @@
 ) impure inline_ref {
     set_data(
         begin_cell()
-        .store_uint(deposit_timestamp, 32)
         .store_slice(admin_address)
         .store_slice(main_sc_address)
         .store_slice(root_master_address)
@@ -45,11 +42,10 @@
     );
 }
 
-() withdraw(
+() withdraw_internal(
     int query_id,
     slice main_sc_address,
     slice admin_address,
-    int deposit_timestamp,
     int total_deposit_amount,
     int usdt_slp_amount,
     int usdt_tlp_amount
@@ -58,7 +54,6 @@
                     .store_uint(op::withdraw_internal, 32)
                     .store_uint(query_id, 64)
                     .store_slice(admin_address)
-                    .store_uint(deposit_timestamp, 32)
                     .store_coins(total_deposit_amount)
                     .store_coins(usdt_slp_amount)
                     .store_coins(usdt_tlp_amount)
@@ -85,10 +80,8 @@
         return ();
     }
     slice sender_address = cs~load_msg_addr();
-    int op = in_msg_body~load_uint(32);
-    int query_id = in_msg_body~load_uint(64);
+    (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
     (
-        int deposit_timestamp,
         slice admin_address,
         slice main_sc_address,
         slice root_master_address,
@@ -101,18 +94,12 @@
     if (op == op::deposit) {
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
 
-        int new_deposit_timestamp = in_msg_body~load_uint(32);
         int new_total_deposit_amount = in_msg_body~load_coins();
         int new_usdt_slp_amount = in_msg_body~load_coins();
         int new_usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
-        if (deposit_timestamp == 0) {
-            deposit_timestamp = new_deposit_timestamp;
-        }
-
         save_data(
-            deposit_timestamp,
             admin_address,
             main_sc_address,
             root_master_address,
@@ -124,41 +111,20 @@
         return();
     }
     if (op == op::transfer_notification) {
-        cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
-        slice jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        throw_unless(err::unknown_token, equal_slices(sender_address, jetton_wallet_address));
+        slice jetton_wallet_address = get_jetton_wallet_address(my_address(), root_master_address, jetton_wallet_code);
+        throw_unless(err::unknown_jetton, equal_slices(sender_address, jetton_wallet_address));
 
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
         throw_unless(err::not_admin, equal_slices(owner_address, admin_address));
 
-        cell state_init = calculate_jetton_wallet_state_init(my_address(), root_master_address, jetton_wallet_code);
-        slice my_jetton_wallet_address = calculate_jetton_wallet_address(state_init);
-        burn_jettons(jetton_amount, my_jetton_wallet_address, query_id, 300000000, admin_address); ;; 0.3 tons
+        burn_jettons(jetton_amount, jetton_wallet_address, query_id, 300000000, admin_address); ;; 0.3 tons
 
-        ;; divide by 10 cause ROOT have 9 decimals & ROOT ~ 100 USDT
-        int withdraw_amount = jetton_amount / 10;
-        withdraw(query_id, main_sc_address, admin_address, deposit_timestamp, withdraw_amount, usdt_slp_amount, usdt_tlp_amount);
-
-        total_deposit_amount -= withdraw_amount;
-        if (total_deposit_amount == 0) {
-            save_data(0, admin_address, main_sc_address, root_master_address, jetton_wallet_code, 0, 0, 0);
-        } else {
-            save_data(
-                deposit_timestamp,
-                admin_address,
-                main_sc_address,
-                root_master_address,
-                jetton_wallet_code,
-                usdt_slp_amount,
-                usdt_tlp_amount,
-                total_deposit_amount
-            );
-        }
+        withdraw_internal(query_id, main_sc_address, admin_address, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
         return();
     }
     throw(err::unknown_op_code);
 }
 
-(int, slice, slice, slice, cell, int, int, int) get_user_data() method_id {
+(slice, slice, slice, cell, int, int, int) get_user_data() method_id {
     return load_data();
 }

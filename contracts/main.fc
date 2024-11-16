@@ -8,13 +8,14 @@
 #include "imports/utils.fc";
 #include "imports/jetton-wallet-governed-utils.fc";
 
-(slice, slice, cell, slice, cell, cell, int) load_data() inline_ref {
+(slice, slice, cell, slice, cell, cell, cell, int) load_data() inline_ref {
     slice ds = get_data().begin_parse();
     return (
         ds~load_msg_addr(),
         ds~load_msg_addr(),
         ds~load_ref(),
         ds~load_msg_addr(),
+        ds~load_ref(),
         ds~load_ref(),
         ds~load_ref(),
         ds~load_uint(64)
@@ -28,6 +29,8 @@
     slice admin_address,
     cell jetton_wallet_governed_code,
     cell jetton_wallet_code,
+    slice router_address,
+    slice recent_sender,
     int root_price
 ) impure inline {
     set_data(
@@ -38,6 +41,12 @@
         .store_slice(admin_address)
         .store_ref(jetton_wallet_governed_code)
         .store_ref(jetton_wallet_code)
+        .store_ref(
+            begin_cell()
+            .store_slice(router_address)
+            .store_slice(recent_sender)
+            .end_cell()
+        )
         .store_uint(root_price, 64)
         .end_cell()
     );
@@ -54,7 +63,7 @@
                                 .store_uint(0, 1)
                                 .end_cell();
     slice jetton_mint_body = begin_cell()
-                            .store_uint(op::mint_token, 32)
+                            .store_uint(op::mint_jetton, 32)
                             .store_uint(query_id, 64)
                             .store_slice(owner_address)
                             .store_coins(20000000) ;; 0.02 tons
@@ -86,7 +95,6 @@
     cell msg_body = begin_cell()
                     .store_uint(op::deposit, 32)
                     .store_uint(query_id, 64)
-                    .store_uint(now(), 32) ;; deposit_timestamp
                     .store_coins(total_deposit_amount)
                     .store_coins(usdt_slp_amount)
                     .store_coins(usdt_tlp_amount)
@@ -100,6 +108,24 @@
                             .store_ref(msg_body)
                             .end_cell();
     send_raw_message(mint_user_sc_msg, SEND_MODE_REGULAR);
+}
+
+() send_withdraw(slice router_address, int query_id, int usdt_tlp_amount, int usdt_slp_amount, int total_deposit_amount) impure inline {
+    cell msg_body = begin_cell()
+                    .store_uint(op::withdraw, 32)
+                    .store_uint(query_id, 64)
+                    .store_coins(usdt_tlp_amount)
+                    .store_coins(usdt_slp_amount)
+                    .store_coins(total_deposit_amount)
+                    .end_cell();
+    cell msg = begin_cell()
+                .store_uint(0x18, 6) 
+                .store_slice(router_address)
+                .store_coins(30000000) ;; 0.03 tons
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
+                .store_ref(msg_body)
+                .end_cell();
+    send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -122,58 +148,74 @@
         slice admin_address,
         cell jetton_wallet_governed_code,
         cell jetton_wallet_code,
+        cell addresses_c,
         int root_price
     ) = load_data();
 
-    if (op == op::transfer_notification) {   
-        cell usdt_jetton_wallet_state_init = calculate_jetton_wallet_governed_state_init(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
-        slice usdt_jetton_wallet_address = calculate_jetton_wallet_governed_address(usdt_jetton_wallet_state_init);
-        throw_unless(err::unknown_token, equal_slices(sender_address, usdt_jetton_wallet_address));
+    slice addresses_s = addresses_c.begin_parse();
+    slice router_address = addresses_s~load_msg_addr();
+    slice recent_sender = addresses_s~load_msg_addr();
 
-        (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
+    if (op == op::transfer_notification) {   
+        slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
+        throw_unless(err::unknown_jetton, equal_slices(sender_address, usdt_jetton_wallet_address));
+        ;; parse jetton transfer body
+        int jetton_amount = in_msg_body~load_coins();
+        slice owner_address = in_msg_body~load_msg_addr();
+        slice response_address = in_msg_body~load_msg_addr();
+        int custom_payload_bit = in_msg_body~load_uint(1);
+        int fwd_ton_amount = in_msg_body~load_coins();
+        int fwd_payload_bit = in_msg_body~load_uint(1);
 
         if (is_address_none(owner_address)) {
             ;; ignore emptry addresses
             return ();
         }
 
-        mint_user_sc(query_id, jetton_amount - 1000000, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
-
-        ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
-        int mint_amount = ((jetton_amount / root_price) * 1000) - 10000000;
-        mint_jettons(query_id, mint_amount, owner_address, root_master_address);
-
-        ;; comission
-        send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000, owner_address);
+        if (equal_slices(owner_address, router_address)) {
+            slice fwd_payload = in_msg_body~load_ref().begin_parse();
+            ;; parse prices data for evaa
+            cell price_data = fwd_payload~load_ref();
+            ;; send yield to user
+            send_jettons(jetton_amount, recent_sender, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1, 50000000, recent_sender);
+        } else {
+            if (fwd_payload_bit) {
+                
+                ;; add owner address to fwd payload for use him as response_destination
+                cell fwd_payload = begin_cell().store_slice(owner_address).end_cell();
+                ;; send usdt to router
+                jetton_amount -= 1000000; ;; 1 usdt fee
+                send_jettons(jetton_amount, router_address, query_id, usdt_jetton_wallet_address, fwd_payload, 1000000, 50000000, owner_address);
+                ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
+                int mint_amount = (jetton_amount / root_price) * 1000;
+                mint_jettons(query_id, mint_amount, owner_address, root_master_address);
+            }
+            ;; comission
+            send_jettons(
+                1000000, 
+                admin_address,
+                query_id,
+                usdt_jetton_wallet_address,
+                begin_cell().end_cell(),
+                1000000, ;; 1 usdt
+                50000000, ;; 0.05 ton
+                owner_address
+            );
+        }
         return ();
     }
     if (op == op::withdraw_internal) {
+        cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+        slice user_sc_address = calculate_sc_address(state_init);
+        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
+        ;; parse msg body
         slice admin_address = in_msg_body~load_msg_addr();
-        int deposit_timestamp = in_msg_body~load_uint(32);
         int total_deposit_amount = in_msg_body~load_coins();
         int usdt_slp_amount = in_msg_body~load_coins();
         int usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
-
-        cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
-        slice user_sc_address = calculate_sc_address(state_init);
-        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
-
-        cell state_init = calculate_jetton_wallet_governed_state_init(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
-        slice usdt_jetton_wallet_address = calculate_jetton_wallet_governed_address(state_init);
-
-        ;; calculating yield at apy of 15%
-        int yield = (root_price * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
-        send_jettons(
-            total_deposit_amount + yield,
-            admin_address,
-            query_id,
-            usdt_jetton_wallet_address,
-            begin_cell().end_cell(),
-            1000000, ;; 0.001 tons
-            50000000, ;; 0.05 tons  
-            admin_address      
-        );
+        ;; send withdraw request to router
+        send_withdraw(router_address, query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount);
         return();
     }
     if (op == op::upgrade_contract) {
@@ -194,19 +236,41 @@
             user_sc_code,admin_address,
             jetton_wallet_governed_code,
             jetton_wallet_code,
+            router_address,
+            recent_sender,
             new_root_price
+        );
+        return ();
+    }
+    if (op == op::mint_user_internal) {
+        throw_unless(err::unknown_address, equal_slices(sender_address, router_address));
+        ;; parse msg body
+        int usdt_tlp_amount = in_msg_body~load_coins();
+        int usdt_slp_amount = in_msg_body~load_coins();
+        int total_deposit_amount = in_msg_body~load_coins();
+        in_msg_body.end_parse();
+        ;; deploy user sc
+        mint_user_sc(
+            query_id,
+            total_deposit_amount,
+            usdt_slp_amount,
+            usdt_tlp_amount,
+            user_sc_code,
+            recent_sender,
+            root_master_address,
+            jetton_wallet_code
         );
         return ();
     }
     throw(err::unknown_op_code);
 }
 
-(slice, slice, cell, slice, cell, cell, int) get_main_data() method_id {
+(slice, slice, cell, slice, cell, cell, cell, int) get_main_data() method_id {
     return load_data();
 }
 
 slice get_user_sc_address(slice admin_address) method_id {
-    (_, slice root_master_address, cell user_sc_code, _, _, cell jetton_wallet_code, _) = load_data();
+    (_, slice root_master_address, cell user_sc_code, _, _, _, cell jetton_wallet_code, _) = load_data();
     cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
     return calculate_sc_address(state_init);
 }
