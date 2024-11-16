@@ -1,5 +1,18 @@
+#include "jetton-wallet-utils.fc";
+#include "jetton-wallet-governed-utils.fc";
+
 int workchain() asm "0 PUSHINT";
 
+
+slice get_jetton_wallet_address(slice account_address, slice jetton_master_address, cell jetton_wallet_code) inline_ref {
+    cell jetton_wallet_state_init = calculate_jetton_wallet_state_init(account_address, jetton_master_address, jetton_wallet_code);
+    return calculate_jetton_wallet_address(jetton_wallet_state_init);
+}
+
+slice get_jetton_wallet_governed_address(slice account_address, slice jetton_master_address, cell jetton_wallet_governed_code) inline_ref {
+    cell jetton_wallet_governed_state_init = calculate_jetton_wallet_governed_state_init(account_address, jetton_master_address, jetton_wallet_governed_code);
+    return calculate_jetton_wallet_governed_address(jetton_wallet_governed_state_init);
+}
 
 () burn_jettons(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value, slice response_address) impure inline {
     cell msg_body = begin_cell()
@@ -55,7 +68,6 @@ int workchain() asm "0 PUSHINT";
 
 cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) inline {
     cell user_sc_data = begin_cell()
-                        .store_uint(0, 32)
                         .store_slice(admin_address)
                         .store_slice(main_sc_address)
                         .store_slice(root_master_address)
