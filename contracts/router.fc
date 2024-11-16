@@ -109,6 +109,7 @@ global int recv_count;
     throw_unless(err::unknown_address, equal_slices(counter_address, owner_address));
     load_data();
     if (recv_count > 0) {
+        ;; todo: update usdt_slp/usdt_tlp/total_deposit_amount 
         recv_count -= 1;
         save_data();
     } else {
@@ -226,6 +227,7 @@ int is_busy() impure inline_ref {
         int user_usdt_slp_amount = in_msg_body~load_coins();
         int user_total_deposit_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
+        ;; todo: send request to withdraw from protocols
     }
     if (op = op::upgrade_contract) {
         throw_unless(err::not_admin, equal_slices(sender_address, main_sc_address));
