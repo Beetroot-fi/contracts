@@ -41,14 +41,7 @@ global int total_deposit_amount;
     );
 }
 
-() withdraw_internal(
-    int query_id,
-    slice main_sc_address,
-    slice admin_address,
-    int total_deposit_amount,
-    int usdt_slp_amount,
-    int usdt_tlp_amount
-) impure inline {
+() withdraw_internal(int query_id) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::withdraw_internal, 32)
                     .store_uint(query_id, 64)
@@ -80,16 +73,15 @@ global int total_deposit_amount;
     }
     slice sender_address = cs~load_msg_addr();
     (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
-
     load_data();
     if (op == op::deposit) {
         throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
-
+        ;; parse msg body
         int new_total_deposit_amount = in_msg_body~load_coins();
         int new_usdt_slp_amount = in_msg_body~load_coins();
         int new_usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
-
+        ;; update storage
         usdt_slp_amount += new_usdt_slp_amount;
         usdt_tlp_amount += new_usdt_tlp_amount;
         total_deposit_amount += new_total_deposit_amount;
@@ -99,13 +91,14 @@ global int total_deposit_amount;
     if (op == op::transfer_notification) {
         slice jetton_wallet_address = get_jetton_wallet_address(my_address(), root_master_address, jetton_wallet_code);
         throw_unless(err::unknown_jetton, equal_slices(sender_address, jetton_wallet_address));
-
+        ;; parse msg body
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
+        ;; if not admin throw error
         throw_unless(err::not_admin, equal_slices(owner_address, admin_address));
-
+        ;; burn received beetroot
         burn_jettons(jetton_amount, jetton_wallet_address, query_id, 300000000, admin_address); ;; 0.3 tons
-
-        withdraw_internal(query_id, main_sc_address, admin_address, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
+        ;; send msg to withdraw funds
+        withdraw_internal(query_id);
         return();
     }
     throw(err::unknown_op_code);
