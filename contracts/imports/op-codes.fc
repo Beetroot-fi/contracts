@@ -9,6 +9,7 @@ const op::upgrade_router = 998;
 const op::update_root_price = 344;
 const op::mint_user_internal = 558;
 const op::text_comment = 0;
+const op::set_router_address = 223;
 
 const op::storm_provide = 0xc89a3ee4;
 const op::tradoor_create_increase_lp_pos_order = 1;
