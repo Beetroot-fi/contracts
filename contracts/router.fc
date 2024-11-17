@@ -33,23 +33,23 @@ global int recv_count;
 
 () load_data() impure inline_ref {
     slice ds = get_data().begin_parse();
-    slice main_sc_address = ds~load_msg_addr();
+    main_sc_address = ds~load_msg_addr();
     (
-        slice tradoor_master_adderss,
-        slice evaa_master_address,
-        slice storm_vault_address
+        tradoor_master_address,
+        evaa_master_address,
+        storm_vault_address
     ) = load_addresses(ds~load_ref());
     (
-        slice usdt_jetton_master_address,
-        slice usdt_tlp_master_address,
-        slice usdt_slp_master_address
+        usdt_jetton_master_address,
+        usdt_tlp_master_address,
+        usdt_slp_master_address
     ) = load_addresses(ds~load_ref());
-    cell jetton_wallet_code = ds~load_ref();
-    cell jetton_wallet_governed_code = ds~load_ref();
-    int usdt_tlp_amount = ds~load_coins();
-    int usdt_slp_amount = ds~load_coins();
-    int total_deposit_amount = ds~load_coins();
-    int recv_count = ds~load_uint(2);
+    jetton_wallet_code = ds~load_ref();
+    jetton_wallet_governed_code = ds~load_ref();
+    usdt_tlp_amount = ds~load_coins();
+    usdt_slp_amount = ds~load_coins();
+    total_deposit_amount = ds~load_coins();
+    recv_count = ds~load_uint(2);
     ds.end_parse();
 }
 
