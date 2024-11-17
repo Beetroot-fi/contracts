@@ -56,4 +56,24 @@ export class Router implements Contract {
             body: beginCell().endCell(),
         });
     }
+
+    async getRouterData(provider: ContractProvider) {
+        const result = (await provider.get('get_router_data', [])).stack
+
+        return {
+            mainScAddress: result.readAddress(),
+            tradoorMasterAddress: result.readAddress(),
+            evaaMasterAddress: result.readAddress(),
+            stormVaultAddress: result.readAddress(),
+            usdtJettonMasterAddress: result.readAddress(),
+            usdtTlpMasterAddress: result.readAddress(),
+            usdtSlpMasterAddress: result.readAddress(),
+            jettonWalletCode: result.readCell(),
+            jettonWalletGovernedCode: result.readCell(),
+            usdtTlpAmount: result.readBigNumber(),
+            usdtSlpAmount: result.readBigNumber(),
+            totalDepositAmount: result.readBigNumber(),
+            recvCount: result.readBigNumber(),
+        }
+    }
 }
