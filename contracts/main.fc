@@ -108,13 +108,20 @@ global int root_price;
     send_raw_message(mint_user_sc_msg, SEND_MODE_REGULAR);
 }
 
-() send_withdraw(int query_id, int usdt_tlp_amount, int usdt_slp_amount, int total_deposit_amount) impure inline {
+() send_withdraw(
+    int query_id,
+    int usdt_tlp_amount,
+    int usdt_slp_amount,
+    int total_deposit_amount,
+    slice response_addresss
+) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::withdraw, 32)
                     .store_uint(query_id, 64)
                     .store_coins(usdt_tlp_amount)
                     .store_coins(usdt_slp_amount)
                     .store_coins(total_deposit_amount)
+                    .store_slice(response_addresss)
                     .end_cell();
     cell msg = begin_cell()
                 .store_uint(0x18, 6) 
@@ -155,7 +162,7 @@ global int root_price;
         return ();
     }
     ;; if another user's deposit is in progress throw error
-    throw_unless(err::busy, recent_sender == begin_cell().store_uint(0, 2).end_cell().begin_parse());
+    throw_unless(err::busy, equal_slices(recent_sender, begin_cell().store_uint(0, 2).end_cell().begin_parse()));
     slice sender_address = cs~load_msg_addr();
     (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
     load_data();
@@ -222,18 +229,19 @@ global int root_price;
         return ();
     }
     if (op == op::withdraw_internal) {
-        cell state_init = calculate_user_sc_state_init(
-            user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
-        slice user_sc_address = calculate_sc_address(state_init);
-        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
         ;; parse msg body
         slice admin_address = in_msg_body~load_msg_addr();
         int total_deposit_amount = in_msg_body~load_coins();
         int usdt_slp_amount = in_msg_body~load_coins();
         int usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
+        ;; throw if not user sc sent msg
+        cell state_init = calculate_user_sc_state_init(
+            user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+        slice user_sc_address = calculate_sc_address(state_init);
+        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
         ;; send withdraw request to router
-        send_withdraw(query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount);
+        send_withdraw(query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount, admin_address);
         return();
     }
     if (op == op::upgrade_contract) {
