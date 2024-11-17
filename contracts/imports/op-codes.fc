@@ -18,7 +18,7 @@ const err::not_admin = 534;
 const err::unknown_jetton = 533;
 const err::unknown_op_code = 777;
 const err::unknown_address = 567;
-const err:busy = 487;
+const err::busy = 487;
 
 ;; common
 
