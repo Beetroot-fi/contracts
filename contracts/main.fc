@@ -126,6 +126,23 @@ global int root_price;
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
+() send_upgrade_router(int query_id, cell new_data, cell new_code) impure inline {
+    cell msg_body = begin_cell()
+                    .store_uint(op::upgrade_contract, 32)
+                    .store_uint(query_id, 64)
+                    .store_ref(new_data)
+                    .store_ref(new_code)
+                    .end_cell();
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(router_address)
+                .store_coins(30000000) ;; 0.03 tons
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(msg_body)
+                .end_cell();
+    send_raw_message(msg, SEND_MODE_REGULAR);
+}
+
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -225,6 +242,13 @@ global int root_price;
         in_msg_body.end_parse();
         set_data(new_data);
         set_code(new_code);
+        return ();
+    }
+    if (op == op::upgrade_router) {
+        throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
+        (cell new_data, cell new_code) = (in_msg_body~load_ref(), in_msg_body~load_ref());
+        in_msg_body.end_parse();
+        send_upgrade_router(query_id, new_data, new_code);
         return ();
     }
     if (op == op::update_root_price) {
