@@ -26,11 +26,9 @@ global int root_price;
     admin_address = ds~load_msg_addr();
     jetton_wallet_governed_code = ds~load_ref();
     jetton_wallet_code = ds~load_ref();
-    
     slice addresses_s = ds~load_ref().begin_parse();
     router_address = addresses_s~load_msg_addr();
     recent_sender = addresses_s~load_msg_addr();
-    
     root_price = ds~load_uint(64);
     ds.end_parse();
 }
@@ -55,7 +53,7 @@ global int root_price;
     );
 }
 
-() mint_jettons(int query_id, int balance, slice owner_address, slice root_master_address) impure inline {
+() mint_jettons(int query_id, int balance, slice owner_address) impure inline {
     cell internal_transfer_body = begin_cell()
                                 .store_uint(op::internal_transfer, 32)
                                 .store_uint(query_id, 64)
@@ -83,19 +81,10 @@ global int root_price;
     send_raw_message(jetton_mint_msg, SEND_MODE_REGULAR);
 }
 
-() mint_user_sc(
-    int query_id,
-    int total_deposit_amount,
-    int usdt_slp_amount,
-    int usdt_tlp_amount,
-    cell user_sc_code,
-    slice owner_address,
-    slice root_master_address,
-    cell jetton_wallet_code
-) impure inline {
+() mint_user_sc(int query_id, int total_deposit_amount, int usdt_slp_amount, int usdt_tlp_amount) impure inline {
     cell state_init = calculate_user_sc_state_init(
         user_sc_code,
-        owner_address,
+        recent_sender,
         my_address(),
         root_master_address,
         jetton_wallet_code
@@ -119,7 +108,7 @@ global int root_price;
     send_raw_message(mint_user_sc_msg, SEND_MODE_REGULAR);
 }
 
-() send_withdraw(slice router_address, int query_id, int usdt_tlp_amount, int usdt_slp_amount, int total_deposit_amount) impure inline {
+() send_withdraw(int query_id, int usdt_tlp_amount, int usdt_slp_amount, int total_deposit_amount) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::withdraw, 32)
                     .store_uint(query_id, 64)
@@ -148,9 +137,10 @@ global int root_price;
         ;; ignore simple transfers
         return ();
     }
+    ;; if another user's deposit is in progress throw error
+    throw_unless(err::busy, recent_sender == begin_cell().store_uint(0, 2).end_cell().begin_parse());
     slice sender_address = cs~load_msg_addr();
     (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
-
     load_data();
     if (op == op::transfer_notification) {
         slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(
@@ -162,20 +152,13 @@ global int root_price;
         ;; parse jetton transfer body
         int jetton_amount = in_msg_body~load_coins();
         slice owner_address = in_msg_body~load_msg_addr();
-        in_msg_body~load_msg_addr();
-        in_msg_body~load_uint(1);
-        in_msg_body~load_coins();
-        slice forward_payload = in_msg_body~load_maybe_ref().begin_parse();
-
         if (is_address_none(owner_address)) {
             ;; ignore emptry addresses
             return ();
         }
-
         if (equal_slices(owner_address, router_address)) {
+            ;; set recent sender to empty address
             recent_sender = begin_cell().store_uint(0, 2).end_cell().begin_parse();
-            save_data();
-
             ;; send yield to user
             send_jettons(
                 jetton_amount,
@@ -188,27 +171,25 @@ global int root_price;
                 recent_sender
             );
         } else {
-            if (forward_payload.null?()) {
-                recent_sender = owner_address;
-                save_data();
-
-                ;; send usdt to router
-                jetton_amount -= 1000000; ;; 1 usdt fee
-                send_jettons(
-                    jetton_amount,
-                    router_address,
-                    query_id,
-                    usdt_jetton_wallet_address,
-                    begin_cell().store_slice(owner_address).end_cell(),
-                    1000000,
-                    50000000,
-                    owner_address
-                );
-                ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
-                int mint_amount = (jetton_amount / root_price) * 1000;
-                mint_jettons(query_id, mint_amount, owner_address, root_master_address);
-            }
-            ;; comission
+            ;; set recent sender to last sender address
+            recent_sender = owner_address;
+            ;; send usdt to router
+            jetton_amount -= 1000000; ;; 1 usdt fee
+            send_jettons(
+                jetton_amount,
+                router_address,
+                query_id,
+                usdt_jetton_wallet_address,
+                begin_cell().store_slice(owner_address).end_cell(),
+                1000000,
+                50000000,
+                owner_address
+            );
+            ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
+            int mint_amount = (jetton_amount / root_price) * 1000;
+            ;; mint beetroot
+            mint_jettons(query_id, mint_amount, owner_address);
+            ;; fee
             send_jettons(
                 1000000, ;; 1 usdt
                 admin_address,
@@ -220,6 +201,7 @@ global int root_price;
                 owner_address
             );
         }
+        save_data();
         return ();
     }
     if (op == op::withdraw_internal) {
@@ -234,7 +216,7 @@ global int root_price;
         int usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
         ;; send withdraw request to router
-        send_withdraw(router_address, query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount);
+        send_withdraw(query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount);
         return();
     }
     if (op == op::upgrade_contract) {
@@ -261,16 +243,7 @@ global int root_price;
         int total_deposit_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
         ;; deploy user sc
-        mint_user_sc(
-            query_id,
-            total_deposit_amount,
-            usdt_slp_amount,
-            usdt_tlp_amount,
-            user_sc_code,
-            recent_sender,
-            root_master_address,
-            jetton_wallet_code
-        );
+        mint_user_sc(query_id, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
         return ();
     }
     throw(err::unknown_op_code);
