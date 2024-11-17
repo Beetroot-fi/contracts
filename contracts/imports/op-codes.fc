@@ -5,6 +5,7 @@ const op::withdraw_internal = 556;
 const op::mint_jetton = 21;
 const op::deposit = 20;
 const op::upgrade_contract = 999;
+const op::upgrade_router = 998;
 const op::update_root_price = 344;
 const op::mint_user_internal = 558;
 const op::text_comment = 0;
