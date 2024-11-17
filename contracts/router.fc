@@ -213,7 +213,7 @@ int is_busy() impure inline_ref {
                     300000000, ;; ;; 0.3 ton
                     response_user_address
                 );
-            } elseif (equal_slices(tradoor_master_address | evaa_master_address | storm_vault_address, owner_address)) {
+            } elseif (equal_slices(tradoor_master_address, owner_address) | equal_slices(evaa_master_address, owner_address) | equal_slices(storm_vault_address, owner_address)) {
                 ;; todo: logic of accepting usdt from protocols.
             }
         } elseif (equal_slices(sender_address, usdt_tlp_jetton_wallet_address)) {
