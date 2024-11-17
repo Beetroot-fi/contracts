@@ -157,8 +157,6 @@ global int root_price;
             return ();
         }
         if (equal_slices(owner_address, router_address)) {
-            ;; set recent sender to empty address
-            recent_sender = begin_cell().store_uint(0, 2).end_cell().begin_parse();
             ;; send yield to user
             send_jettons(
                 jetton_amount,
@@ -170,6 +168,8 @@ global int root_price;
                 50000000,
                 recent_sender
             );
+            ;; set recent sender to empty address
+            recent_sender = begin_cell().store_uint(0, 2).end_cell().begin_parse();
         } else {
             ;; set recent sender to last sender address
             recent_sender = owner_address;
