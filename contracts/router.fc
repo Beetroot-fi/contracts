@@ -80,7 +80,7 @@ global int recv_count;
     );
 }
 
-() send_mint_user_sc(int query_id, int usdt_tlp_amount, int usdt_slp_amount, int total_deposit_amount) impure inline {
+() send_mint_user_sc(int query_id) impure inline {
     cell msg_body = begin_cell()
                     .store_uint(op::mint_user_internal, 32)
                     .store_uint(query_id, 64)
@@ -98,28 +98,25 @@ global int recv_count;
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
-() update_status(
-    slice counter_address,
-    slice owner_address,
-    int query_id,
-    int lp_amount
-) impure inline_ref {
+() update_deposit_status(slice counter_address, slice owner_address,  int query_id, int lp_amount) impure inline_ref {
     throw_unless(err::unknown_address, equal_slices(counter_address, owner_address));
     load_data();
-    if (recv_count > 0) {
-        if (equal_slices(counter_address, usdt_tlp_master_address)) {
-            usdt_tlp_amount = lp_amount;
-        } elseif(equal_slices(counter_address, usdt_slp_master_address)) {
-            usdt_slp_amount = lp_amount;
-        }
-        recv_count -= 1;
-        save_data();
-    } else {
-        send_mint_user_sc(query_id, usdt_tlp_amount, usdt_slp_amount, total_deposit_amount);
+    ;; decrement the counter value by 1
+    recv_count -= 1;
+    ;; update usdt slp/tlp amount
+    if (equal_slices(counter_address, usdt_tlp_master_address)) {
+        usdt_tlp_amount = lp_amount;
+    } elseif(equal_slices(counter_address, usdt_slp_master_address)) {
+        usdt_slp_amount = lp_amount;
+    }
+    ;; if all protocols has successfully deposited
+    if (recv_count == 0) {
+        send_mint_user_sc(query_id);
         usdt_slp_amount = 0;
         usdt_tlp_amount = 0;
         total_deposit_amount = 0;
-    }                   
+    }
+    save_data();
     return();
 }
 
@@ -144,36 +141,33 @@ int is_busy() impure inline_ref {
 
     load_data();
     if (op == op::transfer_notification) {
-        throw_unless(err:busy, is_busy());
-        
+        throw_unless(err::busy, is_busy());
+        ;; get jetton wallets
         slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
-
         slice usdt_tlp_jetton_wallet_address = get_jetton_wallet_address(my_address(), usdt_tlp_master_address, jetton_wallet_code);
-
         slice usdt_slp_jetton_wallet_address = get_jetton_wallet_address(my_address(), usdt_slp_master_address, jetton_wallet_code);
-
+        ;; parse msg body
         int jetton_amount = in_msg_body~load_coins();
         slice owner_address = in_msg_body~load_msg_addr();
         in_msg_body~load_msg_addr();
         in_msg_body~load_uint(1);
         in_msg_body~load_coins();
-        in_msg_body~load_uint(1);
-        slice fwd_payload = in_msg_body~load_ref().begin_parse();
-
         if (equal_slices(sender_address, usdt_jetton_wallet_address)) {
             if (equal_slices(main_sc_address, owner_address)) {
+                ;; get fwd payload
+                slice fwd_payload = in_msg_body~load_maybe_ref().begin_parse();
                 ;; set total deposit amount is user usdt amount
                 total_deposit_amount = jetton_amount;
-
                 ;; counter update of succeed protocols transfers
-                recv_count = 3;
-
+                recv_count = 1;
+                save_data();
+                ;; get response user address
                 slice response_user_address = fwd_payload~load_msg_addr();
-
+                fwd_payload.end_parse();
+                ;; allocation of protocols from the deposit.
                 int tradoor_deposit_amount = jetton_amount * 40 / 100;
                 int storm_deposit_amount = tradoor_deposit_amount;
                 int evaa_deposit_amount = jetton_amount * 20 / 100;
-
                 ;; buy tlp
                 send_jettons(
                     tradoor_deposit_amount,
@@ -181,67 +175,111 @@ int is_busy() impure inline_ref {
                     query_id,
                     usdt_jetton_wallet_address,
                     begin_cell()
-                        .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
-                        .store_coins(tradoor_deposit_amount)
-                        .store_coins(50000000) ;; 0.05 ton
-                        .end_cell(),
+                    .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
+                    .store_coins(tradoor_deposit_amount)
+                    .store_coins(50000000) ;; 0.05 ton
+                    .end_cell(),
                     150000000, ;; 0.15 ton
                     100000000, ;; ;; 0.1 ton
                     response_user_address
                 );
-
                 ;; strom provide
-                send_jettons(
-                    storm_deposit_amount,
-                    storm_vault_address,
-                    query_id,
-                    usdt_jetton_wallet_address,
-                    begin_cell().store_uint(op::storm_provide, 32).end_cell(),
-                    350000000, ;; 0.35 ton
-                    305000000, ;; ;; 0.305 ton
-                    response_user_address
-                );
-
-                ;; evaa supply
-                send_jettons(
-                    evaa_deposit_amount,
-                    evaa_master_address,
-                    query_id,
-                    usdt_jetton_wallet_address,
-                    begin_cell().end_cell(),
-                    400000000, ;; 0.4 ton
-                    300000000, ;; ;; 0.3 ton
-                    response_user_address
-                );
-            } elseif (equal_slices(tradoor_master_address, owner_address) | equal_slices(evaa_master_address, owner_address) | equal_slices(storm_vault_address, owner_address)) {
-                ;; todo: logic of accepting usdt from protocols.
+                ;; send_jettons(
+                ;;     storm_deposit_amount,
+                ;;     storm_vault_address,
+                ;;     query_id,
+                ;;     usdt_jetton_wallet_address,
+                ;;     begin_cell().store_uint(op::storm_provide, 32).end_cell(),
+                ;;     350000000, ;; 0.35 ton
+                ;;     305000000, ;; ;; 0.305 ton
+                ;;     response_user_address
+                ;; );
+                ;; ;; evaa supply
+                ;; send_jettons(
+                ;;     evaa_deposit_amount,
+                ;;     evaa_master_address,
+                ;;     query_id,
+                ;;     usdt_jetton_wallet_address,
+                ;;     begin_cell().end_cell(),
+                ;;     400000000, ;; 0.4 ton
+                ;;     300000000, ;; ;; 0.3 ton
+                ;;     response_user_address
+                ;; );
+            } elseif (
+                equal_slices(tradoor_master_address, owner_address) |
+                equal_slices(evaa_master_address, owner_address) |
+                equal_slices(storm_vault_address, owner_address)) {
+                ;; update counter
+                recv_count -= 1;
+                total_deposit_amount += jetton_amount;
+                ;; send user yield to main sc
+                if (recv_count == 0) {
+                    send_jettons(
+                        total_deposit_amount,
+                        main_sc_address,
+                        query_id,
+                        usdt_jetton_wallet_address,
+                        begin_cell().end_cell(),
+                        300000000,
+                        300000000,
+                        main_sc_address
+                    );
+                    total_deposit_amount = 0;
+                }
+                save_data();
+                return();
             }
         } elseif (equal_slices(sender_address, usdt_tlp_jetton_wallet_address)) {
             throw_unless(err::unknown_address, equal_slices(usdt_tlp_master_address, owner_address));
-            update_status(usdt_tlp_jetton_wallet_address, owner_address, query_id, jetton_amount);
+            update_deposit_status(usdt_tlp_jetton_wallet_address, owner_address, query_id, jetton_amount);
             return();
-        } elseif (equal_slices(sender_address, usdt_slp_jetton_wallet_address)) {
+        }
+        elseif (equal_slices(sender_address, usdt_slp_jetton_wallet_address)) {
             throw_unless(err::unknown_address, equal_slices(usdt_slp_master_address, owner_address));
-            update_status(usdt_slp_jetton_wallet_address, owner_address, query_id, jetton_amount);
+            update_deposit_status(usdt_slp_jetton_wallet_address, owner_address, query_id, jetton_amount);
             return();
-        }    
+        }
         throw(err::unknown_jetton);
         return ();
     }
     if (op == op::text_comment) {
-        update_status(evaa_master_address, sender_address, query_id, 0);
+        update_deposit_status(evaa_master_address, sender_address, query_id, 0);
         return();
     }
     if (op == op::withdraw) {
         throw_unless(err::not_admin, equal_slices(sender_address, main_sc_address));
-
+        ;; update counter
+        recv_count = 1;
+        save_data();
+        ;; parse msg body
         int user_usdt_tlp_amount = in_msg_body~load_coins();
         int user_usdt_slp_amount = in_msg_body~load_coins();
         int user_total_deposit_amount = in_msg_body~load_coins();
+        slice user_address = in_msg_body~load_msg_addr();
         in_msg_body.end_parse();
-        ;; todo: send request to withdraw from protocols
+        ;; get jetton wallets
+        slice usdt_tlp_jetton_wallet_address = get_jetton_wallet_address(
+            my_address(),
+            usdt_tlp_master_address,
+            jetton_wallet_code
+        );
+        ;; sell tlp
+        send_jettons(
+            user_usdt_tlp_amount,
+            tradoor_master_address,
+            query_id,
+            usdt_tlp_jetton_wallet_address,
+            begin_cell()
+            .store_coins(user_usdt_tlp_amount)
+            .store_coins(50000000) ;; 0.05 ton
+            .end_cell(),
+            100000000, ;; 0.1 ton
+            150000000, ;; 0.15 ton
+            user_address
+        );
+        ;; todo: withdraw evaa & storm
     }
-    if (op = op::upgrade_contract) {
+    if (op == op::upgrade_contract) {
         throw_unless(err::not_admin, equal_slices(sender_address, main_sc_address));
         (cell new_data, cell new_code) = (in_msg_body~load_ref(), in_msg_body~load_ref());
         in_msg_body.end_parse();
@@ -250,6 +288,25 @@ int is_busy() impure inline_ref {
         return ();
     }
     throw(err::unknown_op_code);
+}
+
+(slice, slice, slice, slice, slice, slice, slice, cell, cell, int, int, int, int) get_router_data() method_id {
+    load_data();
+    return (
+        main_sc_address,
+        tradoor_master_address,
+        evaa_master_address,
+        storm_vault_address,
+        usdt_jetton_master_address,
+        usdt_tlp_master_address,
+        usdt_slp_master_address,
+        jetton_wallet_code,
+        jetton_wallet_governed_code,
+        usdt_tlp_amount,
+        usdt_slp_amount,
+        total_deposit_amount,
+        recv_count
+    );
 }
 
 int check_is_busy() method_id {
