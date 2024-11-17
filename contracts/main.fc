@@ -278,6 +278,14 @@ global int root_price;
         mint_user_sc(query_id, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount);
         return ();
     }
+    if (op == op::set_router_address) {
+        throw_unless(err::unknown_address, equal_slices(sender_address, admin_address));
+        slice new_router_address = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+        router_address = new_router_address;
+        save_data();
+        return ();
+    }
     throw(err::unknown_op_code);
 }
 
