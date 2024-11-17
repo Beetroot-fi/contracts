@@ -162,11 +162,11 @@ global int root_price;
         return ();
     }
     ;; if another user's deposit is in progress throw error
-    throw_unless(err::busy, equal_slices(recent_sender, begin_cell().store_uint(0, 2).end_cell().begin_parse()));
     slice sender_address = cs~load_msg_addr();
     (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
     load_data();
     if (op == op::transfer_notification) {
+        throw_unless(err::busy, equal_slices(recent_sender, begin_cell().store_uint(0, 2).end_cell().begin_parse()));
         slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(
             my_address(),
             usdt_jetton_master_address,
