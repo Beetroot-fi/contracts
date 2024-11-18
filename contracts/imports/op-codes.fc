@@ -13,6 +13,7 @@ const op::set_router_address = 223;
 
 const op::storm_provide = 0xc89a3ee4;
 const op::tradoor_create_increase_lp_pos_order = 1;
+const op::evaa_withdraw = 0x2;
 
 const err::not_parent = 544;
 const err::not_child = 543;
