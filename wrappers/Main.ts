@@ -8,8 +8,11 @@ export type MainConfig = {
     jettonWalletGovernedCode: Cell,
     jettonWalletCode: Cell,
     rootPrice: bigint,
-    routerAddress: Address,
-    recentSender: Address,
+    tradoorMasterAddress: Address,
+    evaaMasterAddress: Address,
+    stormVaultAddress: Address,
+    usdtSlpMasterAddress: Address,
+    usdtTlpMasterAddress: Address,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -22,8 +25,15 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeRef(config.jettonWalletCode)
         .storeRef(
             beginCell()
-                .storeAddress(config.routerAddress)
-                .storeAddress(config.recentSender)
+                .storeAddress(config.evaaMasterAddress)
+                .storeAddress(config.tradoorMasterAddress)
+                .storeAddress(config.stormVaultAddress)
+                .storeRef(
+                    beginCell()
+                        .storeAddress(config.usdtSlpMasterAddress)
+                        .storeAddress(config.usdtTlpMasterAddress)
+                        .endCell()
+                )
                 .endCell()
         )
         .storeUint(config.rootPrice, 64)
@@ -72,31 +82,6 @@ export class Main implements Contract {
         })
     }
 
-    async sendUpgradeRouter(provider: ContractProvider, via: Sender, value: bigint, queryId: bigint, newCode: Cell, newData: Cell) {
-        await provider.internal(via, {
-            value,
-            sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell()
-                .storeUint(998, 32)
-                .storeUint(queryId, 64)
-                .storeRef(newData)
-                .storeRef(newCode)
-                .endCell()
-        })
-    }
-
-    async sendSetRouterAddress(provider: ContractProvider, via: Sender, value: bigint, queryId: bigint, routerAddress: Address) {
-        await provider.internal(via, {
-            value,
-            sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell()
-                .storeUint(223, 32)
-                .storeUint(queryId, 64)
-                .storeAddress(routerAddress)
-                .endCell()
-        })
-    }
-
     async getUserScAddress(provider: ContractProvider, ownerAddress: Address): Promise<Address> {
         const result = (await provider.get('get_user_sc_address', [
             {
@@ -118,8 +103,6 @@ export class Main implements Contract {
             adminAddress: result.readAddress(),
             usdtJettonWalletCode: result.readCell(),
             jettonWalletCode: result.readCell(),
-            routerAddress: result.readAddress(),
-            recentSender: result.readAddress(),
             rootPrice: result.readBigNumber(),
         }
     }
