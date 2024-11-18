@@ -35,12 +35,10 @@ global slice usdt_tlp_jetton_wallet;
     evaa_master_address = protocol_addresses_s~load_msg_addr();
     tradoor_master_address = protocol_addresses_s~load_msg_addr();
     storm_vault_address = protocol_addresses_s~load_msg_addr();
-    protocol_addresses_s.end_parse();
 
     slice lp_tokens_wallet_addresses = protocol_addresses_s~load_ref().begin_parse();
     usdt_slp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
     usdt_tlp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
-    lp_tokens_wallet_addresses.end_parse()
 
     root_price = ds~load_uint(64);
 
