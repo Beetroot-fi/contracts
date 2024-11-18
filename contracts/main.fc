@@ -169,12 +169,20 @@ global slice usdt_tlp_jetton_wallet;
         return ();
     }
     slice sender_address = cs~load_msg_addr();
-    (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
-    load_data();
+
+    int op = in_msg_body~load_uint(32);
+    if (op == op::text_comment) {
+        ;; receive msgs with text comments
+        return ();
+    }
+    int query_id = in_msg_body~load_uint(64);
+
     if (op == op::excesses) {
         ;; receive excesses
         return ();
     }
+
+    load_data();
     if (op == op::transfer_notification) {
         slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(),usdt_jetton_master_address, jetton_wallet_governed_code);
         throw_unless(err::unknown_jetton, equal_slices(sender_address, usdt_jetton_wallet_address));
