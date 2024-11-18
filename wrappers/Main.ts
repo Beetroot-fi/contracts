@@ -11,8 +11,8 @@ export type MainConfig = {
     tradoorMasterAddress: Address,
     evaaMasterAddress: Address,
     stormVaultAddress: Address,
-    usdtSlpMasterAddress: Address,
-    usdtTlpMasterAddress: Address,
+    usdtSlpJettonWallet: Address,
+    usdtTlpJettonWallet: Address,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -30,8 +30,8 @@ export function mainConfigToCell(config: MainConfig): Cell {
                 .storeAddress(config.stormVaultAddress)
                 .storeRef(
                     beginCell()
-                        .storeAddress(config.usdtSlpMasterAddress)
-                        .storeAddress(config.usdtTlpMasterAddress)
+                        .storeAddress(config.usdtSlpJettonWallet)
+                        .storeAddress(config.usdtTlpJettonWallet)
                         .endCell()
                 )
                 .endCell()
@@ -104,6 +104,11 @@ export class Main implements Contract {
             usdtJettonWalletCode: result.readCell(),
             jettonWalletCode: result.readCell(),
             rootPrice: result.readBigNumber(),
+            evaaMasterAddress: result.readAddress(),
+            tradoorMasterAddress: result.readAddress(),
+            stormVaultAddress: result.readAddress(),
+            usdtSlpJettonWallet: result.readAddress(),
+            usdtTlpJettonWallet: result.readAddress(),
         }
     }
 }
