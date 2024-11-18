@@ -92,7 +92,7 @@ global slice usdt_tlp_master_address;
     cell jetton_mint_msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(root_master_address)
-        .store_coins(msg_value)msg_value
+        .store_coins(msg_value)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         .store_slice(jetton_mint_body)
         .end_cell();
@@ -182,6 +182,10 @@ global slice usdt_tlp_master_address;
             return ();
         }
 
+        if (op::excesses) {
+            return ();
+        }
+
         if (equal_slices(owner_address, evaa_master_address) | equal_slices(owner_address, storm_vault_address)) {
             return ();
         } else {
@@ -196,7 +200,7 @@ global slice usdt_tlp_master_address;
                 .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
                 .store_coins(tradoor_deposit_amount)
                 .store_coins(50000000) ;; 0.05 ton
-                .end_cell()
+                .end_cell();
             send_jettons(
                 tradoor_deposit_amount,
                 tradoor_master_address,
