@@ -18,8 +18,8 @@ global int root_price;
 global slice tradoor_master_address;
 global slice evaa_master_address;
 global slice storm_vault_address;
-global slice usdt_slp_master_address;
-global slice usdt_tlp_master_address;
+global slice usdt_slp_jetton_wallet;
+global slice usdt_tlp_jetton_wallet;
 
 () load_data() impure inline_ref {
     slice ds = get_data().begin_parse();
@@ -35,10 +35,12 @@ global slice usdt_tlp_master_address;
     evaa_master_address = protocol_addresses_s~load_msg_addr();
     tradoor_master_address = protocol_addresses_s~load_msg_addr();
     storm_vault_address = protocol_addresses_s~load_msg_addr();
+    protocol_addresses_s.end_parse();
 
-    slice lp_tokens_master_addresses = ds~load_ref().begin_parse();
-    usdt_slp_master_address = lp_tokens_master_addresses~load_msg_addr();
-    usdt_tlp_master_address = lp_tokens_master_addresses~load_msg_addr();
+    slice lp_tokens_wallet_addresses = protocol_addresses_s~load_ref().begin_parse();
+    usdt_slp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
+    usdt_tlp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
+    lp_tokens_wallet_addresses.end_parse()
 
     root_price = ds~load_uint(64);
 
@@ -61,8 +63,8 @@ global slice usdt_tlp_master_address;
             .store_slice(storm_vault_address)
             .store_ref(
                 begin_cell()
-                .store_slice(usdt_slp_master_address)
-                .store_slice(usdt_tlp_master_address)
+                .store_slice(usdt_slp_jetton_wallet)
+                .store_slice(usdt_tlp_jetton_wallet)
                 .end_cell()
             )
             .end_cell()
@@ -164,7 +166,7 @@ global slice usdt_tlp_master_address;
         ;; ignore bounced messages
         return ();
     }
-    if (in_msg_body.slice_bits() <= 32) {
+    if (in_msg_body.slice_bits() < 32) {
         ;; ignore simple transfers
         return ();
     }
@@ -179,10 +181,6 @@ global slice usdt_tlp_master_address;
 
         if (is_address_none(owner_address)) {
             ;; ignore emptry addresses
-            return ();
-        }
-
-        if (op::excesses) {
             return ();
         }
 
@@ -278,15 +276,12 @@ global slice usdt_tlp_master_address;
         slice user_sc_address = calculate_sc_address(state_init);
         throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
 
-        slice usdt_tlp_jetton_wallet_address = get_jetton_wallet_address(my_address(), usdt_tlp_master_address, jetton_wallet_code);
-        slice usdt_slp_jetton_wallet_address = get_jetton_wallet_address(my_address(), usdt_slp_master_address, jetton_wallet_code);
-
         ;; sell tlp
         send_jettons(
             usdt_tlp_amount,
             tradoor_master_address,
             query_id,
-            usdt_tlp_jetton_wallet_address,
+            usdt_tlp_jetton_wallet,
             begin_cell()
                 .store_coins(usdt_slp_amount)
                 .store_coins(50000000) ;; 0.05 ton
@@ -300,7 +295,7 @@ global slice usdt_tlp_master_address;
         send_evaa_withdraw(query_id, price_data, "USDT"H, evaa_withdraw_amount, my_address());
 
         ;; storm withdraw
-        burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet_address, query_id, 30000000, admin_address);
+        burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 30000000, admin_address);
         return();
     }
     if (op == op::upgrade_contract) {
@@ -322,7 +317,7 @@ global slice usdt_tlp_master_address;
     throw(err::unknown_op_code);
 }
 
-(slice, slice, cell, slice, cell, cell, int) get_main_data() method_id {
+(slice, slice, cell, slice, cell, cell, int, slice, slice, slice, slice, slice) get_main_data() method_id {
     load_data();
     return (
         usdt_jetton_master_address,
@@ -331,7 +326,12 @@ global slice usdt_tlp_master_address;
         admin_address,
         jetton_wallet_governed_code,
         jetton_wallet_code,
-        root_price
+        root_price,
+        evaa_master_address,
+        tradoor_master_address,
+        storm_vault_address,
+        usdt_slp_jetton_wallet,
+        usdt_tlp_jetton_wallet
     );
 }
 
