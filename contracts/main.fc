@@ -231,8 +231,8 @@ global slice usdt_tlp_master_address;
                 query_id,
                 usdt_jetton_wallet_address,
                 begin_cell().end_cell(),
-                400000000, ;; 0.4 ton
-                300000000, ;; ;; 0.3 ton
+                300000000, ;; 0.3 ton
+                400000000, ;; ;; 0.4 ton
                 owner_address
             );
 
