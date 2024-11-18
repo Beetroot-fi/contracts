@@ -229,7 +229,7 @@ global slice usdt_tlp_jetton_wallet;
                 .store_uint(op::evaa_supply, 32)
                 .store_int(-1, 2)
                 .store_slice(my_address())
-                .store_coins(0)
+                .store_uint(0, 64)
                 .store_ref(begin_cell().end_cell())
                 .end_cell();
             send_jettons(
