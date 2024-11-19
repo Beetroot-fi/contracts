@@ -199,9 +199,9 @@ global slice usdt_tlp_jetton_wallet;
         } else {
             jetton_amount -= 1000000; ;; 1 usdt fee
 
-            int tradoor_deposit_amount = jetton_amount * 40 / 100;
-            int storm_deposit_amount = tradoor_deposit_amount;
-            int evaa_deposit_amount = jetton_amount * 20 / 100;
+            int tradoor_deposit_amount = jetton_amount * 60 / 100;
+            int storm_deposit_amount = jetton_amount * 40 / 100;
+            ;; int evaa_deposit_amount = jetton_amount * 20 / 100;
 
             ;; but tlp
             cell tradoor_fwd_payload = begin_cell()
@@ -233,23 +233,23 @@ global slice usdt_tlp_jetton_wallet;
             );
 
             ;; evaa supply
-            cell evaa_fwd_paylod = begin_cell()
-                .store_uint(op::evaa_supply, 32)
-                .store_int(-1, 2)
-                .store_slice(my_address())
-                .store_uint(0, 64)
-                .store_ref(begin_cell().end_cell())
-                .end_cell();
-            send_jettons(
-                evaa_deposit_amount,
-                evaa_master_address,
-                query_id,
-                usdt_jetton_wallet_address,
-                evaa_fwd_paylod,
-                300000000, ;; 0.3 ton
-                400000000, ;; ;; 0.4 ton
-                owner_address
-            );
+            ;; cell evaa_fwd_paylod = begin_cell()
+            ;;     .store_uint(op::evaa_supply, 32)
+            ;;     .store_int(-1, 2)
+            ;;     .store_slice(my_address())
+            ;;     .store_uint(0, 64)
+            ;;     .store_ref(begin_cell().end_cell())
+            ;;     .end_cell();
+            ;; send_jettons(
+            ;;     evaa_deposit_amount,
+            ;;     evaa_master_address,
+            ;;     query_id,
+            ;;     usdt_jetton_wallet_address,
+            ;;     evaa_fwd_paylod,
+            ;;     300000000, ;; 0.3 ton
+            ;;     400000000, ;; ;; 0.4 ton
+            ;;     owner_address
+            ;; );
 
             ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
             int mint_amount = (jetton_amount / root_price) * 1000;
@@ -288,10 +288,10 @@ global slice usdt_tlp_jetton_wallet;
         cell price_data = in_msg_body~load_ref();
         in_msg_body.end_parse();
 
-        cell state_init = calculate_user_sc_state_init(
-            user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
-        slice user_sc_address = calculate_sc_address(state_init);
-        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
+        ;; cell state_init = calculate_user_sc_state_init(
+        ;;     user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+        ;; slice user_sc_address = calculate_sc_address(state_init);
+        ;; throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
 
         ;; sell tlp
         send_jettons(
@@ -300,7 +300,7 @@ global slice usdt_tlp_jetton_wallet;
             query_id,
             usdt_tlp_jetton_wallet,
             begin_cell()
-                .store_coins(usdt_slp_amount)
+                .store_coins(usdt_tlp_amount)
                 .store_coins(50000000) ;; 0.05 ton
                 .end_cell(),
             100000000, ;; 0.1 ton
@@ -309,10 +309,10 @@ global slice usdt_tlp_jetton_wallet;
         );
 
         ;; evaa withdraw
-        send_evaa_withdraw(query_id, price_data, "USDT"H, evaa_withdraw_amount, my_address());
+        ;; send_evaa_withdraw(query_id, price_data, "USDT"H, evaa_withdraw_amount, my_address());
 
         ;; storm withdraw
-        burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 30000000, admin_address);
+        burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 300000000, admin_address);
         return();
     }
     if (op == op::upgrade_contract) {
