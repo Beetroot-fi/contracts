@@ -110,7 +110,7 @@ global int root_amount;
         cell price_data = fwd_payload~load_ref(); ;; price data cell for evaa withdraw operation
         fwd_payload.end_parse();
 
-        int deposit_share_percentage = (jetton_amount / root_amount) * 100;
+        int deposit_share_percentage = jetton_amount * 100 / root_amount;
 
         int final_usdt_slp_amount = usdt_slp_amount * deposit_share_percentage / 100;
         int final_usdt_tlp_amount = usdt_tlp_amount * deposit_share_percentage / 100;
