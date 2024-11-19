@@ -288,10 +288,10 @@ global slice usdt_tlp_jetton_wallet;
         cell price_data = in_msg_body~load_ref();
         in_msg_body.end_parse();
 
-        ;; cell state_init = calculate_user_sc_state_init(
-        ;;     user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
-        ;; slice user_sc_address = calculate_sc_address(state_init);
-        ;; throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
+        cell state_init = calculate_user_sc_state_init(
+            user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+        slice user_sc_address = calculate_sc_address(state_init);
+        throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
 
         ;; sell tlp
         send_jettons(
