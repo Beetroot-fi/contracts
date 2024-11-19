@@ -17,6 +17,7 @@ export function userConfigToCell(config: UserConfig): Cell {
         .storeCoins(0)
         .storeCoins(0)
         .storeCoins(0)
+        .storeCoins(0)
         .endCell();
 }
 
@@ -53,6 +54,7 @@ export class User implements Contract {
             usdtSlpAmount: result.readBigNumber(),
             usdtTlpAmount: result.readBigNumber(),
             totalDepositAmount: result.readBigNumber(),
+            rootAmount: result.readBigNumber(),
         };
     }
 }
