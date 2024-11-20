@@ -9,7 +9,6 @@ export type UserConfig = {
 
 export function userConfigToCell(config: UserConfig): Cell {
     return beginCell()
-        .storeUint(0n, 32)
         .storeAddress(config.adminAddress)
         .storeAddress(config.mainScAddress)
         .storeAddress(config.rootMasterAddress)
@@ -46,7 +45,6 @@ export class User implements Contract {
         const result = (await provider.get('get_user_data', [])).stack;
 
         return {
-            depositTimestamp: result.readBigNumber(),
             adminAddress: result.readAddress(),
             mainScAddress: result.readAddress(),
             rootMasterAddress: result.readAddress(),
