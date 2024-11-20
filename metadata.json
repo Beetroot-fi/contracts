@@ -2,6 +2,6 @@
   "name": "Beetroot",
   "symbol": "ROOT",
   "decimals": "9",
-  "image": "",
-  "description": "automated yield farming aggregator"
+  "image": "https://raw.githubusercontent.com/Beetroot-fi/contracts/refs/heads/master/LOGO.PNG",
+  "description": "Automated yield farming aggregator"
 }
