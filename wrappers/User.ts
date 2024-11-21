@@ -3,16 +3,12 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 export type UserConfig = {
     adminAddress: Address,
     mainScAddress: Address,
-    rootMasterAddress: Address,
-    jettonWalletCode: Cell,
 };
 
 export function userConfigToCell(config: UserConfig): Cell {
     return beginCell()
         .storeAddress(config.adminAddress)
         .storeAddress(config.mainScAddress)
-        .storeAddress(config.rootMasterAddress)
-        .storeRef(config.jettonWalletCode)
         .storeCoins(0)
         .storeCoins(0)
         .storeCoins(0)
@@ -47,8 +43,6 @@ export class User implements Contract {
         return {
             adminAddress: result.readAddress(),
             mainScAddress: result.readAddress(),
-            rootMasterAddress: result.readAddress(),
-            jettonWalletCode: result.readCell(),
             usdtSlpAmount: result.readBigNumber(),
             usdtTlpAmount: result.readBigNumber(),
             totalDepositAmount: result.readBigNumber(),
