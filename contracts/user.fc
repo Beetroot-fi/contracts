@@ -59,7 +59,7 @@ global int root_amount;
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(main_sc_address)
-        .store_coins(20000000) ;; 0.02 tons
+        .store_coins(500000000) ;; 0.5 tons
         .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         .store_ref(msg_body)
         .end_cell();
