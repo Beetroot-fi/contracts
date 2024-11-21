@@ -198,7 +198,7 @@ global slice usdt_tlp_jetton_wallet;
             slice user_sc_address = calculate_sc_address(user_sc_state_init);
 
             ;; send withdraw request to user sc to get deposits data
-            send_withdraw_internal(query_id, user_sc_address, 50000000, jetton_amount); ;; 0.05 ton
+            send_withdraw_internal(query_id, user_sc_address, 550000000, jetton_amount); ;; 0.55 ton
 
             ;; burn received beetroot
             burn_jettons(jetton_amount, beetroot_jetton_wallet_address, query_id, 300000000, owner_address); ;; 0.3 ton
