@@ -117,7 +117,12 @@ global int root_amount;
         int evaa_share_amount = total_deposit_amount * 20 / 100;
         int final_evaa_withdraw_amount = evaa_share_amount * deposit_share_percentage / 100;
 
-        withdraw(query_id, price_data, final_usdt_slp_amount, final_usdt_tlp_amount, final_evaa_withdraw_amount);
+        withdraw(query_id, price_data, final_usdt_slp_amount, final_usdt_tlp_amount, 0);
+
+        usdt_slp_amount -= final_usdt_slp_amount;
+        usdt_tlp_amount -= final_usdt_tlp_amount;
+        root_amount -= jetton_amount;
+        save_data();
         return();
     }
     throw(err::unknown_op_code);
