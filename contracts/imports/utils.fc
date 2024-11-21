@@ -63,12 +63,10 @@ slice get_jetton_wallet_governed_address(slice account_address, slice jetton_mas
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
-cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) inline {
+cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address) inline {
     cell user_sc_data = begin_cell()
             .store_slice(admin_address)
             .store_slice(main_sc_address)
-            .store_slice(root_master_address)
-            .store_ref(jetton_wallet_code)
             .store_coins(0)
             .store_coins(0)
             .store_coins(0)

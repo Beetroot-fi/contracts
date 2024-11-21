@@ -9,8 +9,6 @@
 
 global slice admin_address;
 global slice main_sc_address;
-global slice root_master_address;
-global cell jetton_wallet_code;
 global int usdt_slp_amount;
 global int usdt_tlp_amount;
 global int total_deposit_amount;
@@ -21,8 +19,6 @@ global int root_amount;
 
     admin_address = ds~load_msg_addr(); 
     main_sc_address = ds~load_msg_addr();
-    root_master_address = ds~load_msg_addr(); 
-    jetton_wallet_code = ds~load_ref();
     usdt_slp_amount = ds~load_coins();
     usdt_tlp_amount = ds~load_coins();
     total_deposit_amount = ds~load_coins();
@@ -36,8 +32,6 @@ global int root_amount;
         begin_cell()
         .store_slice(admin_address)
         .store_slice(main_sc_address)
-        .store_slice(root_master_address)
-        .store_ref(jetton_wallet_code)
         .store_coins(usdt_slp_amount)
         .store_coins(usdt_tlp_amount)
         .store_coins(total_deposit_amount)
@@ -46,18 +40,16 @@ global int root_amount;
     );
 }
 
-() withdraw(int query_id, cell price_data, int final_usdt_slp_amount, int final_usdt_tlp_amount, int final_evaa_withdraw_amount) impure inline {
+() withdraw_notification(int query_id, int final_usdt_slp_amount, int final_usdt_tlp_amount) impure inline {
     cell msg_body = begin_cell()
-        .store_uint(op::withdraw, 32)
+        .store_uint(op::withdraw_notification, 32)
         .store_uint(query_id, 64)
         .store_slice(admin_address)
-        .store_coins(final_evaa_withdraw_amount)
         .store_coins(final_usdt_slp_amount)
         .store_coins(final_usdt_tlp_amount)
-        .store_ref(price_data)
         .end_cell();
     cell msg = begin_cell()
-        .store_uint(0x18, 6)
+        .store_uint(0x10, 6)
         .store_slice(main_sc_address)
         .store_coins(500000000) ;; 0.5 tons
         .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
@@ -97,27 +89,17 @@ global int root_amount;
         save_data();
         return();
     }
-    if (op == op::transfer_notification) {
-        slice jetton_wallet_address = get_jetton_wallet_address(my_address(), root_master_address, jetton_wallet_code);
-        throw_unless(err::unknown_jetton, equal_slices(sender_address, jetton_wallet_address));
+    if (op == op::withdraw_internal) {
+        throw_unless(err::not_parent, equal_slices(sender_address, main_sc_address));
 
-        (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
-        throw_unless(err::not_admin, equal_slices(owner_address, admin_address));
-
-        burn_jettons(jetton_amount, jetton_wallet_address, query_id, 300000000, admin_address); ;; 0.3 tons
-
-        slice fwd_payload = in_msg_body~load_maybe_ref().begin_parse();
-        cell price_data = fwd_payload~load_ref(); ;; price data cell for evaa withdraw operation
-        fwd_payload.end_parse();
+        int jetton_amount = in_msg_body~load_coins();
+        in_msg_body.end_parse();
 
         int deposit_share_percentage = jetton_amount * 100 / root_amount;
-
         int final_usdt_slp_amount = usdt_slp_amount * deposit_share_percentage / 100;
         int final_usdt_tlp_amount = usdt_tlp_amount * deposit_share_percentage / 100;
-        int evaa_share_amount = total_deposit_amount * 20 / 100;
-        int final_evaa_withdraw_amount = evaa_share_amount * deposit_share_percentage / 100;
 
-        withdraw(query_id, price_data, final_usdt_slp_amount, final_usdt_tlp_amount, 0);
+        withdraw_notification(query_id ,final_usdt_slp_amount, final_usdt_tlp_amount);
 
         usdt_slp_amount -= final_usdt_slp_amount;
         usdt_tlp_amount -= final_usdt_tlp_amount;
@@ -128,13 +110,11 @@ global int root_amount;
     throw(err::unknown_op_code);
 }
 
-(slice, slice, slice, cell, int, int, int, int) get_user_data() method_id {
+(slice, slice, int, int, int, int) get_user_data() method_id {
     load_data();
     return (
         admin_address,
         main_sc_address,
-        root_master_address,
-        jetton_wallet_code,
         usdt_slp_amount,
         usdt_tlp_amount,
         total_deposit_amount,
