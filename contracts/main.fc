@@ -16,7 +16,6 @@ global cell jetton_wallet_governed_code;
 global cell jetton_wallet_code;
 global int root_price;
 global slice tradoor_master_address;
-global slice evaa_master_address;
 global slice storm_vault_address;
 global slice usdt_slp_jetton_wallet;
 global slice usdt_tlp_jetton_wallet;
@@ -32,7 +31,6 @@ global slice usdt_tlp_jetton_wallet;
     jetton_wallet_code = ds~load_ref();
 
     slice protocol_addresses_s = ds~load_ref().begin_parse();
-    evaa_master_address = protocol_addresses_s~load_msg_addr();
     tradoor_master_address = protocol_addresses_s~load_msg_addr();
     storm_vault_address = protocol_addresses_s~load_msg_addr();
 
@@ -56,7 +54,6 @@ global slice usdt_tlp_jetton_wallet;
         .store_ref(jetton_wallet_code)
         .store_ref(
             begin_cell()
-            .store_slice(evaa_master_address)
             .store_slice(tradoor_master_address)
             .store_slice(storm_vault_address)
             .store_ref(
@@ -207,7 +204,7 @@ global slice usdt_tlp_jetton_wallet;
             burn_jettons(jetton_amount, beetroot_jetton_wallet_address, query_id, 300000000, owner_address); ;; 0.3 ton
             return ();
         } else {
-            if (equal_slices(owner_address, evaa_master_address) | equal_slices(owner_address, storm_vault_address)) {
+            if equal_slices(owner_address, storm_vault_address) {
                 return ();
             } else {
                 jetton_amount -= 1000000; ;; 1 usdt fee
@@ -217,10 +214,10 @@ global slice usdt_tlp_jetton_wallet;
 
                 ;; but tlp
                 cell buy_tlp_fwd_payload = begin_cell()
-                .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
-                .store_coins(tradoor_deposit_amount)
-                .store_coins(50000000) ;; 0.05 ton
-                .end_cell();
+                    .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
+                    .store_coins(tradoor_deposit_amount)
+                    .store_coins(50000000) ;; 0.05 ton
+                    .end_cell();
                 send_jettons(
                     tradoor_deposit_amount,
                     tradoor_master_address,
@@ -326,7 +323,7 @@ global slice usdt_tlp_jetton_wallet;
     throw(err::unknown_op_code);
 }
 
-(slice, slice, cell, slice, cell, cell, int, slice, slice, slice, slice, slice) get_main_data() method_id {
+(slice, slice, cell, slice, cell, cell, int, slice, slice, slice, slice) get_main_data() method_id {
     load_data();
     return (
         usdt_jetton_master_address,
@@ -336,7 +333,6 @@ global slice usdt_tlp_jetton_wallet;
         jetton_wallet_governed_code,
         jetton_wallet_code,
         root_price,
-        evaa_master_address,
         tradoor_master_address,
         storm_vault_address,
         usdt_slp_jetton_wallet,
