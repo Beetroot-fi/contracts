@@ -44,7 +44,7 @@ global int root_amount;
     cell msg_body = begin_cell()
         .store_uint(op::withdraw_notification, 32)
         .store_uint(query_id, 64)
-        .store_slice(main_sc_address)
+        .store_slice(admin_address)
         .store_coins(final_usdt_slp_amount)
         .store_coins(final_usdt_tlp_amount)
         .end_cell();
