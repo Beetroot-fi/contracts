@@ -9,7 +9,6 @@ export type MainConfig = {
     jettonWalletCode: Cell,
     rootPrice: bigint,
     tradoorMasterAddress: Address,
-    evaaMasterAddress: Address,
     stormVaultAddress: Address,
     usdtSlpJettonWallet: Address,
     usdtTlpJettonWallet: Address,
@@ -25,7 +24,6 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeRef(config.jettonWalletCode)
         .storeRef(
             beginCell()
-                .storeAddress(config.evaaMasterAddress)
                 .storeAddress(config.tradoorMasterAddress)
                 .storeAddress(config.stormVaultAddress)
                 .storeRef(
@@ -104,7 +102,6 @@ export class Main implements Contract {
             usdtJettonWalletCode: result.readCell(),
             jettonWalletCode: result.readCell(),
             rootPrice: result.readBigNumber(),
-            evaaMasterAddress: result.readAddress(),
             tradoorMasterAddress: result.readAddress(),
             stormVaultAddress: result.readAddress(),
             usdtSlpJettonWallet: result.readAddress(),
