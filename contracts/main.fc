@@ -157,6 +157,18 @@ global slice usdt_tlp_jetton_wallet;
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
+() send_excesses(int query_id, int msg_value, slice response_address) impure inline {
+    cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(response_address)
+        .store_coins(msg_value)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses, 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    send_raw_message(msg, SEND_MODE_IGNORE_ERRORS);
+}
+
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -278,6 +290,7 @@ global slice usdt_tlp_jetton_wallet;
         in_msg_body.end_parse();
         int root_amount = (total_deposit_amount / root_price) * 1000;
         mint_user_sc(query_id, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount, root_amount, admin_address, 30000000);
+        send_excesses(query_id, 300000000, admin_address);
         return ();
     }
     if (op == op::withdraw) {
