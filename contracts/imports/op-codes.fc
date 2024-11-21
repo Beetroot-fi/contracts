@@ -1,6 +1,8 @@
 ;; custom
 
 const op::withdraw = 555;
+const op::withdraw_internal = 556;
+const op::withdraw_notification = 557;
 const op::mint_jetton = 21;
 const op::deposit = 20;
 const op::upgrade_contract = 999;
