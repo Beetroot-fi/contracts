@@ -1,0 +1,125 @@
+//
+// TON BLOCK LAYOUT
+//
+
+nothing$0 {X:Type} = Maybe X;
+just$1 {X:Type} value:X = Maybe X;
+left$0 {X:Type} {Y:Type} value:X = Either X Y;
+right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+var_uint$_ {n:#} len:(#< n) value:(uint (len * 8))
+         = VarUInteger n;
+
+addr_none$00 = MsgAddressExt;
+addr_extern$01 len:(## 9) external_address:(bits len)
+             = MsgAddressExt;
+anycast_info$_ depth:(#<= 30) { depth >= 1 }
+   rewrite_pfx:(bits depth) = Anycast;
+addr_std$10 anycast:(Maybe Anycast)
+   workchain_id:int8 address:bits256  = MsgAddressInt;
+addr_var$11 anycast:(Maybe Anycast) addr_len:(## 9)
+   workchain_id:int32 address:(bits addr_len) = MsgAddressInt;
+_ _:MsgAddressInt = MsgAddress;
+_ _:MsgAddressExt = MsgAddress;
+
+
+//
+// TEP-74 - Fungible tokens (Jettons) standard
+//
+
+transfer query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress
+           response_destination:MsgAddress custom_payload:(Maybe ^Cell)
+           forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
+           = InternalMsgBody;
+
+transfer_notification query_id:uint64 amount:(VarUInteger 16)
+           sender:MsgAddress forward_payload:(Either Cell ^Cell)
+           = InternalMsgBody;
+
+excesses query_id:uint64 = InternalMsgBody;
+
+burn query_id:uint64 amount:(VarUInteger 16)
+       response_destination:MsgAddress custom_payload:(Maybe ^Cell)
+       = InternalMsgBody;
+
+internal_transfer  query_id:uint64 amount:(VarUInteger 16) from:MsgAddress
+                     response_address:MsgAddress
+                     forward_ton_amount:(VarUInteger 16)
+                     forward_payload:(Either Cell ^Cell)
+                     = InternalMsgBody;
+burn_notification query_id:uint64 amount:(VarUInteger 16)
+       sender:MsgAddress response_destination:MsgAddress
+       = InternalMsgBody;
+
+// ----- Unspecified by standard, but suggested format of internal message
+
+mint query_id:uint64 owner_address:MsgAddress jetton_amount:(VarUInteger 16)
+        internal_transfer_body:(Cell ^Cell) = InternalMsgBody;
+
+//
+// OP CODES LAYOUT
+//
+
+
+deposit query_id:uint64
+        total_deposit_amount:(VarUInteger 16)
+        usdt_slp_amount:(VarUInteger 16)
+        usdt_tlp_amount:(VarUInteger 16)
+        root_amount:(VarUInteger 16) = InternalMsgBody;
+
+withdraw query_id:uint64
+        usdt_tlp_amount:(VarUInteger 16)
+        usdt_slp_amount:(VarUInteger 16)
+        root_amount:(VarUInteger 16)
+        admin_address:MsgAddress = InternalMsgBody;
+
+withdraw_internal query_id:uint64
+        jetton_amount:(VarUInteger 16) = InternalMsgBody;
+
+withdraw_notification query_id:uint64
+        admin_address:MsgAddress
+        usdt_slp_amount:(VarUInteger 16)
+        usdt_tlp_amount:(VarUInteger 16) = InternalMsgBody;
+
+successful_withdraw query_id:uint64
+        usdt_amount:(VarUInteger 16)
+        user_address:MsgAddress = InternalMsgBody;
+
+upgrade_contract query_id:uint64
+        new_data:(Cell ^Cell)
+        new_code:(Cell ^Cell) = InternalMsgBody;
+
+update_root_price query_id:uint64
+        new_root_price:(VarUInteger 16) = InternalMsgBody;
+
+mint_user_internal query_id:uint64
+        usdt_tlp_amount:(VarUInteger 16)
+        usdt_slp_amount:(VarUInteger 16)
+        total_deposit_amount:(VarUInteger 16)
+        admin_address:MsgAddress = InternalMsgBody;
+
+//
+// STORAGES LAYOUT
+//
+
+protocols_addresses tradoor_master_address:MsgAddress
+        storm_vault_address:MsgAddress = ProtocolsAddresses;
+
+addresses_of_jetton_wallets_lp_tokens udst_slp_jetton_wallet:MsgAddress
+        udst_tlp_jetton_wallet:MsgAddress = AddressesOfJettonWalletsLpTokens;
+
+main_storage usdt_jetton_master_address:MsgAddress
+        root_master_address:MsgAddress user_sc_code:(Cell ^Cell)
+        admin_address:MsgAddress
+        jetton_wallet_governed_code:(Cell ^Cell)
+        jetton_wallet_code:(Cell ^Cell)
+        protocols_addresses:(ProtocolsAddresses ^Cell)
+        addresses_of_jetton_wallets_lp_tokens:(AddressesOfJettonWalletsLpTokens ^Cell)
+        root_price:uint64 = MainStorage;
+
+
+user_storage admin_address:MsgAddress
+        main_sc_address:MsgAddress
+        usdt_slp_amount:(VarUInteger 16)
+        usdt_tlp_amount:(VarUInteger 16)
+        total_deposit_amount:(VarUInteger 16)
+        root_amount:(VarUInteger 16) = UserStorage;
