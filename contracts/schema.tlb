@@ -101,11 +101,12 @@ mint_user_internal query_id:uint64
 // STORAGES LAYOUT
 //
 
-protocols_addresses tradoor_master_address:MsgAddress
-        storm_vault_address:MsgAddress = ProtocolsAddresses;
-
 addresses_of_jetton_wallets_lp_tokens udst_slp_jetton_wallet:MsgAddress
         udst_tlp_jetton_wallet:MsgAddress = AddressesOfJettonWalletsLpTokens;
+
+protocols_addresses tradoor_master_address:MsgAddress
+        storm_vault_address:MsgAddress
+        addresses_of_jetton_wallets_lp_tokens:(AddressesOfJettonWalletsLpTokens ^Cell) = ProtocolsAddresses;
 
 main_storage usdt_jetton_master_address:MsgAddress
         root_master_address:MsgAddress user_sc_code:(Cell ^Cell)
@@ -113,9 +114,7 @@ main_storage usdt_jetton_master_address:MsgAddress
         jetton_wallet_governed_code:(Cell ^Cell)
         jetton_wallet_code:(Cell ^Cell)
         protocols_addresses:(ProtocolsAddresses ^Cell)
-        addresses_of_jetton_wallets_lp_tokens:(AddressesOfJettonWalletsLpTokens ^Cell)
         root_price:uint64 = MainStorage;
-
 
 user_storage admin_address:MsgAddress
         main_sc_address:MsgAddress
