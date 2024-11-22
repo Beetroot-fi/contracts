@@ -1,14 +1,28 @@
+#include "jetton-wallet-utils.fc";
+#include "jetton-wallet-governed-utils.fc";
+#include "stdlib.fc";
+
 int workchain() asm "0 PUSHINT";
 
 
+slice get_jetton_wallet_address(slice account_address, slice jetton_master_address, cell jetton_wallet_code) inline_ref {
+    cell jetton_wallet_state_init = calculate_jetton_wallet_state_init(account_address, jetton_master_address, jetton_wallet_code);
+    return calculate_jetton_wallet_address(jetton_wallet_state_init);
+}
+
+slice get_jetton_wallet_governed_address(slice account_address, slice jetton_master_address, cell jetton_wallet_governed_code) inline_ref {
+    cell jetton_wallet_governed_state_init = calculate_jetton_wallet_governed_state_init(account_address, jetton_master_address, jetton_wallet_governed_code);
+    return calculate_jetton_wallet_governed_address(jetton_wallet_governed_state_init);
+}
+
 () burn_jettons(int jetton_amount, slice jetton_wallet_address, int query_id, int msg_value, slice response_address) impure inline {
     cell msg_body = begin_cell()
-                    .store_uint(op::burn, 32)
-                    .store_uint(query_id, 64)
-                    .store_coins(jetton_amount)
-                    .store_slice(response_address)
-                    .store_uint(0, 1)
-                    .end_cell();
+                .store_uint(op::burn, 32)
+                .store_uint(query_id, 64)
+                .store_coins(jetton_amount)
+                .store_slice(response_address)
+                .store_uint(0, 1)
+                .end_cell();
     cell msg = begin_cell()
                 .store_uint(0x18, 6)
                 .store_slice(jetton_wallet_address)
@@ -29,41 +43,35 @@ int workchain() asm "0 PUSHINT";
     int msg_value,
     slice response_address
 ) impure inline_ref {
-    builder msg_body = begin_cell()
-                    .store_uint(op::transfer, 32)
-                    .store_uint(query_id, 64)
-                    .store_coins(jetton_amount)
-                    .store_slice(owner_address)
-                    .store_slice(response_address)
-                    .store_uint(0, 1) 
-                    .store_coins(fwd_ton_amount); 
-    if (fwd_payload.begin_parse().slice_empty?()) {
-        msg_body~store_uint(0, 1);
-    } else {
-        msg_body~store_uint(1, 1);
-        msg_body~store_ref(fwd_payload);
-    }
+    cell msg_body = begin_cell()
+            .store_uint(op::transfer, 32)
+            .store_uint(query_id, 64)
+            .store_coins(jetton_amount)
+            .store_slice(owner_address)
+            .store_slice(response_address)
+            .store_uint(0, 1)
+            .store_coins(fwd_ton_amount)
+            .store_maybe_ref(fwd_payload)
+            .end_cell();
     cell msg = begin_cell()
-                .store_uint(0x18, 6)
-                .store_slice(jetton_wallet_address)
-                .store_coins(msg_value) 
-                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                .store_ref(msg_body.end_cell())
-               .end_cell();
+            .store_uint(0x18, 6)
+            .store_slice(jetton_wallet_address)
+            .store_coins(msg_value)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(msg_body)
+            .end_cell();
     send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
-cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address, slice root_master_address, cell jetton_wallet_code) inline {
+cell calculate_user_sc_state_init(cell user_sc_code, slice admin_address, slice main_sc_address) inline {
     cell user_sc_data = begin_cell()
-                        .store_uint(0, 32)
-                        .store_slice(admin_address)
-                        .store_slice(main_sc_address)
-                        .store_slice(root_master_address)
-                        .store_ref(jetton_wallet_code)
-                        .store_coins(0)
-                        .store_coins(0)
-                        .store_coins(0)
-                        .end_cell();
+            .store_slice(admin_address)
+            .store_slice(main_sc_address)
+            .store_coins(0)
+            .store_coins(0)
+            .store_coins(0)
+            .store_coins(0)
+            .end_cell();
     return begin_cell()
             .store_uint(6, 5)
             .store_ref(user_sc_code)

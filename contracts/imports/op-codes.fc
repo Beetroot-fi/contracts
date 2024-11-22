@@ -1,18 +1,27 @@
 ;; custom
+
 const op::withdraw = 555;
 const op::withdraw_internal = 556;
-const op::mint_token = 21;
+const op::withdraw_notification = 557;
+const op::mint_jetton = 21;
+const op::succesful_withdraw = 489;
 const op::deposit = 20;
 const op::upgrade_contract = 999;
 const op::update_root_price = 344;
+const op::mint_user_internal = 558;
+const op::text_comment = 0;
+
 const op::storm_provide = 0xc89a3ee4;
+const op::tradoor_create_increase_lp_pos_order = 1;
+const op::evaa_supply = 0x1;
+const op::evaa_withdraw = 0x2;
 
 const err::not_parent = 544;
 const err::not_child = 543;
 const err::not_admin = 534;
-const err::unknown_token = 533;
+const err::unknown_jetton = 533;
 const err::unknown_op_code = 777;
-
+const err::unknown_address = 567;
 
 ;; common
 

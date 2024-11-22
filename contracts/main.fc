@@ -8,28 +8,42 @@
 #include "imports/utils.fc";
 #include "imports/jetton-wallet-governed-utils.fc";
 
-(slice, slice, cell, slice, cell, cell, int) load_data() inline_ref {
+global slice usdt_jetton_master_address;
+global slice root_master_address;
+global cell user_sc_code;
+global slice admin_address;
+global cell jetton_wallet_governed_code;
+global cell jetton_wallet_code;
+global int root_price;
+global slice tradoor_master_address;
+global slice storm_vault_address;
+global slice usdt_slp_jetton_wallet;
+global slice usdt_tlp_jetton_wallet;
+
+() load_data() impure inline_ref {
     slice ds = get_data().begin_parse();
-    return (
-        ds~load_msg_addr(),
-        ds~load_msg_addr(),
-        ds~load_ref(),
-        ds~load_msg_addr(),
-        ds~load_ref(),
-        ds~load_ref(),
-        ds~load_uint(64)
-    );
+
+    usdt_jetton_master_address = ds~load_msg_addr();
+    root_master_address = ds~load_msg_addr();
+    user_sc_code = ds~load_ref();
+    admin_address = ds~load_msg_addr();
+    jetton_wallet_governed_code = ds~load_ref();
+    jetton_wallet_code = ds~load_ref();
+
+    slice protocol_addresses_s = ds~load_ref().begin_parse();
+    tradoor_master_address = protocol_addresses_s~load_msg_addr();
+    storm_vault_address = protocol_addresses_s~load_msg_addr();
+
+    slice lp_tokens_wallet_addresses = protocol_addresses_s~load_ref().begin_parse();
+    usdt_slp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
+    usdt_tlp_jetton_wallet = lp_tokens_wallet_addresses~load_msg_addr();
+
+    root_price = ds~load_uint(64);
+
+    ds.end_parse();
 }
 
-() save_data(
-    slice usdt_jetton_master_address,
-    slice root_master_address,
-    cell user_sc_code,
-    slice admin_address,
-    cell jetton_wallet_governed_code,
-    cell jetton_wallet_code,
-    int root_price
-) impure inline {
+() save_data() impure inline_ref {
     set_data(
         begin_cell()
         .store_slice(usdt_jetton_master_address)
@@ -38,36 +52,47 @@
         .store_slice(admin_address)
         .store_ref(jetton_wallet_governed_code)
         .store_ref(jetton_wallet_code)
-        .store_uint(root_price, 64)
+        .store_ref(
+            begin_cell()
+            .store_slice(tradoor_master_address)
+            .store_slice(storm_vault_address)
+            .store_ref(
+                begin_cell()
+                .store_slice(usdt_slp_jetton_wallet)
+                .store_slice(usdt_tlp_jetton_wallet)
+                .end_cell()
+            )
+            .end_cell()
+        ).store_uint(root_price, 64)
         .end_cell()
     );
 }
 
-() mint_jettons(int query_id, int balance, slice owner_address, slice root_master_address) impure inline {
+() mint_jettons(int query_id, int balance, slice owner_address, int fwd_ton_amount, int msg_value) impure inline {
     cell internal_transfer_body = begin_cell()
-                                .store_uint(op::internal_transfer, 32)
-                                .store_uint(query_id, 64)
-                                .store_coins(balance)
-                                .store_slice(my_address())
-                                .store_slice(owner_address)
-                                .store_coins(1000000) ;; 0.001 tons
-                                .store_uint(0, 1)
-                                .end_cell();
+        .store_uint(op::internal_transfer, 32)
+        .store_uint(query_id, 64)
+        .store_coins(balance)
+        .store_slice(my_address())
+        .store_slice(owner_address)
+        .store_coins(fwd_ton_amount)
+        .store_uint(0, 1)
+        .end_cell();
     slice jetton_mint_body = begin_cell()
-                            .store_uint(op::mint_token, 32)
-                            .store_uint(query_id, 64)
-                            .store_slice(owner_address)
-                            .store_coins(20000000) ;; 0.02 tons
-                            .store_ref(internal_transfer_body)
-                            .end_cell()
-                            .begin_parse();
+        .store_uint(op::mint_jetton, 32)
+        .store_uint(query_id, 64)
+        .store_slice(owner_address)
+        .store_coins(20000000) ;; 0.02 tons
+        .store_ref(internal_transfer_body)
+        .end_cell()
+        .begin_parse();
     cell jetton_mint_msg = begin_cell()
-                        .store_uint(0x18, 6) 
-                        .store_slice(root_master_address)
-                        .store_coins(30000000) ;; 0.03 tons
-                        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) 
-                        .store_slice(jetton_mint_body)
-                        .end_cell();
+        .store_uint(0x18, 6)
+        .store_slice(root_master_address)
+        .store_coins(msg_value)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_slice(jetton_mint_body)
+        .end_cell();
     send_raw_message(jetton_mint_msg, SEND_MODE_REGULAR);
 }
 
@@ -76,30 +101,57 @@
     int total_deposit_amount,
     int usdt_slp_amount,
     int usdt_tlp_amount,
-    cell user_sc_code,
-    slice owner_address,
-    slice root_master_address,
-    cell jetton_wallet_code
+    int root_amount,
+    slice admin_address,
+    int msg_value
 ) impure inline {
-    cell state_init = calculate_user_sc_state_init(user_sc_code, owner_address, my_address(), root_master_address, jetton_wallet_code);
+    cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address());
     slice to_address = calculate_sc_address(state_init);
     cell msg_body = begin_cell()
-                    .store_uint(op::deposit, 32)
-                    .store_uint(query_id, 64)
-                    .store_uint(now(), 32) ;; deposit_timestamp
-                    .store_coins(total_deposit_amount)
-                    .store_coins(usdt_slp_amount)
-                    .store_coins(usdt_tlp_amount)
-                    .end_cell();
+        .store_uint(op::deposit, 32)
+        .store_uint(query_id, 64)
+        .store_coins(total_deposit_amount)
+        .store_coins(usdt_slp_amount)
+        .store_coins(usdt_tlp_amount)
+        .store_coins(root_amount)
+        .end_cell();
     cell mint_user_sc_msg = begin_cell()
-                            .store_uint(0x10, 6)
-                            .store_slice(to_address) 
-                            .store_coins(30000000) ;; 0.03 tons
-                            .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-                            .store_ref(state_init)
-                            .store_ref(msg_body)
-                            .end_cell();
+        .store_uint(0x10, 6)
+        .store_slice(to_address)
+        .store_coins(msg_value)
+        .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+        .store_ref(state_init)
+        .store_ref(msg_body)
+        .end_cell();
     send_raw_message(mint_user_sc_msg, SEND_MODE_REGULAR);
+}
+
+() send_excesses(int query_id, int msg_value, slice response_address) impure inline {
+    cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(response_address)
+        .store_coins(msg_value)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses, 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    send_raw_message(msg, SEND_MODE_IGNORE_ERRORS);
+}
+
+() send_withdraw_internal(int query_id, slice user_sc_addr, int msg_value, int jetton_amount) impure inline {
+    cell msg_body = begin_cell()
+        .store_uint(op::withdraw_internal, 32)
+        .store_uint(query_id, 64)
+        .store_coins(jetton_amount)
+        .end_cell();
+    cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(user_sc_addr)
+        .store_coins(msg_value)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(msg_body)
+        .end_cell();
+    send_raw_message(msg, SEND_MODE_REGULAR);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -114,21 +166,25 @@
         return ();
     }
     slice sender_address = cs~load_msg_addr();
-    (int op, int query_id) = (in_msg_body~load_uint(32), in_msg_body~load_uint(64));
-    (
-        slice usdt_jetton_master_address,
-        slice root_master_address,
-        cell user_sc_code,
-        slice admin_address,
-        cell jetton_wallet_governed_code,
-        cell jetton_wallet_code,
-        int root_price
-    ) = load_data();
 
-    if (op == op::transfer_notification) {   
-        cell usdt_jetton_wallet_state_init = calculate_jetton_wallet_governed_state_init(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
-        slice usdt_jetton_wallet_address = calculate_jetton_wallet_governed_address(usdt_jetton_wallet_state_init);
-        throw_unless(err::unknown_token, equal_slices(sender_address, usdt_jetton_wallet_address));
+    int op = in_msg_body~load_uint(32);
+    if (op == op::text_comment) {
+        ;; receive msgs with text comments
+        return ();
+    }
+    int query_id = in_msg_body~load_uint(64);
+
+    if (op == op::excesses) {
+        ;; receive excesses
+        return ();
+    }
+
+    load_data();
+    if (op == op::transfer_notification) {
+        slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(),usdt_jetton_master_address, jetton_wallet_governed_code);
+        slice beetroot_jetton_wallet_address = get_jetton_wallet_address(my_address(), root_master_address, jetton_wallet_code);
+        throw_unless(err::unknown_jetton, equal_slices(sender_address, usdt_jetton_wallet_address) |
+         equal_slices(sender_address, beetroot_jetton_wallet_address));
 
         (int jetton_amount, slice owner_address) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
 
@@ -137,43 +193,138 @@
             return ();
         }
 
-        mint_user_sc(query_id, jetton_amount - 1_000_000, 0, 0, user_sc_code, owner_address, root_master_address, jetton_wallet_code);
+        if (equal_slices(sender_address, beetroot_jetton_wallet_address)) {
+            cell user_sc_state_init = calculate_user_sc_state_init(user_sc_code, owner_address, my_address());
+            slice user_sc_address = calculate_sc_address(user_sc_state_init);
 
-        ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
-        mint_jettons(query_id, (jetton_amount / root_price) * 1000, owner_address, root_master_address);
+            ;; send withdraw request to user sc to get deposits data
+            send_withdraw_internal(query_id, user_sc_address, 550000000, jetton_amount); ;; 0.55 ton
 
-        ;; comission
-        send_jettons(1000000, admin_address, query_id, usdt_jetton_wallet_address, begin_cell().end_cell(), 1000000, 50000000, owner_address);
+            ;; burn received beetroot
+            burn_jettons(jetton_amount, beetroot_jetton_wallet_address, query_id, 300000000, owner_address); ;; 0.3 ton
+            return ();
+        } else {
+            if equal_slices(owner_address, storm_vault_address) {
+                return ();
+            } else {
+                jetton_amount -= 1000000; ;; 1 usdt fee
+
+                int tradoor_deposit_amount = jetton_amount * 60 / 100;
+                int storm_deposit_amount = jetton_amount * 40 / 100;
+
+                ;; but tlp
+                cell buy_tlp_fwd_payload = begin_cell()
+                    .store_uint(op::tradoor_create_increase_lp_pos_order, 8)
+                    .store_coins(tradoor_deposit_amount)
+                    .store_coins(50000000) ;; 0.05 ton
+                    .end_cell();
+                send_jettons(
+                    tradoor_deposit_amount,
+                    tradoor_master_address,
+                    query_id,
+                    usdt_jetton_wallet_address,
+                    buy_tlp_fwd_payload,
+                    100000000, ;; 0.1 ton
+                    150000000, ;; ;; 0.15 ton
+                    owner_address
+                );
+
+                ;; strom provide
+                send_jettons(
+                    storm_deposit_amount,
+                    storm_vault_address,
+                    query_id,
+                    usdt_jetton_wallet_address,
+                    begin_cell().store_uint(op::storm_provide, 32).end_cell(),
+                    305000000, ;; 0.305 ton
+                    350000000, ;; ;; 0.35 ton
+                    owner_address
+                );
+
+                ;; divide by 100 cause 1 ROOT ~ 100 USDT, mult by 1000 cause usdt have 6 decimals
+                int mint_amount = (jetton_amount / root_price) * 1000;
+                mint_jettons(query_id, mint_amount, owner_address, 8000000, 30000000); ;; 0.3 ton
+
+                ;; fee
+                send_jettons(
+                    1000000, ;; 1 usdt
+                    admin_address,
+                    query_id,
+                    usdt_jetton_wallet_address,
+                    begin_cell().end_cell(),
+                    1,
+                    50000000, ;; 0.05 ton
+                    owner_address
+                );
+            }
+        }
         return ();
     }
-    if (op == op::withdraw_internal) {
-        slice admin_address = in_msg_body~load_msg_addr();
-        int deposit_timestamp = in_msg_body~load_uint(32);
+    if (op == op::mint_user_internal) {
+        throw_unless(err::unknown_address, equal_slices(sender_address, admin_address));
+        int usdt_tlp_amount = in_msg_body~load_coins();
+        int usdt_slp_amount = in_msg_body~load_coins();
         int total_deposit_amount = in_msg_body~load_coins();
+        slice admin_address = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+        int root_amount = (total_deposit_amount / root_price) * 1000;
+
+        mint_user_sc(query_id, total_deposit_amount, usdt_slp_amount, usdt_tlp_amount, root_amount, admin_address, 30000000);
+
+        send_excesses(query_id, 300000000, admin_address); ;; 0.3 ton
+        return ();
+    }
+    if (op == op::withdraw_notification) {
+        slice admin_address = in_msg_body~load_msg_addr();
         int usdt_slp_amount = in_msg_body~load_coins();
         int usdt_tlp_amount = in_msg_body~load_coins();
         in_msg_body.end_parse();
 
-        cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+        cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address());
         slice user_sc_address = calculate_sc_address(state_init);
         throw_unless(err::not_child, equal_slices(sender_address, user_sc_address));
 
-        cell state_init = calculate_jetton_wallet_governed_state_init(my_address(), usdt_jetton_master_address, jetton_wallet_governed_code);
-        slice usdt_jetton_wallet_address = calculate_jetton_wallet_governed_address(state_init);
-
-        ;; calculating yield at apy of 15%
-        int yield = (root_price * 15 * (now() - deposit_timestamp) * 10000) / 31536000;
+        ;; sell tlp
+        cell sell_tlp_fwd_payload = begin_cell()
+            .store_coins(usdt_tlp_amount)
+            .store_coins(50000000) ;; 0.05 ton
+            .end_cell();
         send_jettons(
-            total_deposit_amount + yield,
-            admin_address,
+            usdt_tlp_amount,
+            tradoor_master_address,
+            query_id,
+            usdt_tlp_jetton_wallet,
+            sell_tlp_fwd_payload,
+            100000000, ;; 0.1 ton
+            150000000, ;; 0.15 ton
+            admin_address
+        );
+
+        ;; storm withdraw
+        burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 300000000, admin_address); ;; 0.3 ton
+        return();
+    }
+    if (op == op::succesful_withdraw) {
+        throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
+
+        int usdt_amount = in_msg_body~load_coins();
+        slice user_address = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+
+        slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(),usdt_jetton_master_address, jetton_wallet_governed_code);
+
+        send_jettons(
+            usdt_amount,
+            user_address,
             query_id,
             usdt_jetton_wallet_address,
             begin_cell().end_cell(),
-            1000000, ;; 0.001 tons
-            50000000, ;; 0.05 tons  
-            admin_address      
+            1,
+            50000000, ;; 0.05 ton
+            user_address
         );
-        return();
+        send_excesses(query_id, 300000000, user_address); ;; 0.3 ton
+        return ();
     }
     if (op == op::upgrade_contract) {
         throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
@@ -187,25 +338,32 @@
         throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
         int new_root_price = in_msg_body~load_uint(64);
         in_msg_body.end_parse();
-        save_data(
-            usdt_jetton_master_address,
-            root_master_address,
-            user_sc_code,admin_address,
-            jetton_wallet_governed_code,
-            jetton_wallet_code,
-            new_root_price
-        );
+        root_price = new_root_price;
+        save_data();
         return ();
     }
     throw(err::unknown_op_code);
 }
 
-(slice, slice, cell, slice, cell, cell, int) get_main_data() method_id {
-    return load_data();
+(slice, slice, cell, slice, cell, cell, int, slice, slice, slice, slice) get_main_data() method_id {
+    load_data();
+    return (
+        usdt_jetton_master_address,
+        root_master_address,
+        user_sc_code,
+        admin_address,
+        jetton_wallet_governed_code,
+        jetton_wallet_code,
+        root_price,
+        tradoor_master_address,
+        storm_vault_address,
+        usdt_slp_jetton_wallet,
+        usdt_tlp_jetton_wallet
+    );
 }
 
-slice get_user_sc_address(slice admin_address) method_id {
-    (_, slice root_master_address, cell user_sc_code, _, _, cell jetton_wallet_code, _) = load_data();
-    cell state_init = calculate_user_sc_state_init(user_sc_code, admin_address, my_address(), root_master_address, jetton_wallet_code);
+slice get_user_sc_address(slice user_address) method_id {
+    load_data();
+    cell state_init = calculate_user_sc_state_init(user_sc_code, user_address, my_address());
     return calculate_sc_address(state_init);
 }

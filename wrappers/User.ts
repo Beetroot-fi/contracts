@@ -3,17 +3,13 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 export type UserConfig = {
     adminAddress: Address,
     mainScAddress: Address,
-    rootMasterAddress: Address,
-    jettonWalletCode: Cell,
 };
 
 export function userConfigToCell(config: UserConfig): Cell {
     return beginCell()
-        .storeUint(0n, 32)
         .storeAddress(config.adminAddress)
         .storeAddress(config.mainScAddress)
-        .storeAddress(config.rootMasterAddress)
-        .storeRef(config.jettonWalletCode)
+        .storeCoins(0)
         .storeCoins(0)
         .storeCoins(0)
         .storeCoins(0)
@@ -45,14 +41,12 @@ export class User implements Contract {
         const result = (await provider.get('get_user_data', [])).stack;
 
         return {
-            depositTimestamp: result.readBigNumber(),
             adminAddress: result.readAddress(),
             mainScAddress: result.readAddress(),
-            rootMasterAddress: result.readAddress(),
-            jettonWalletCode: result.readCell(),
             usdtSlpAmount: result.readBigNumber(),
             usdtTlpAmount: result.readBigNumber(),
             totalDepositAmount: result.readBigNumber(),
+            rootAmount: result.readBigNumber(),
         };
     }
 }

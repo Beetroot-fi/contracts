@@ -8,6 +8,10 @@ export type MainConfig = {
     jettonWalletGovernedCode: Cell,
     jettonWalletCode: Cell,
     rootPrice: bigint,
+    tradoorMasterAddress: Address,
+    stormVaultAddress: Address,
+    usdtSlpJettonWallet: Address,
+    usdtTlpJettonWallet: Address,
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
@@ -18,6 +22,18 @@ export function mainConfigToCell(config: MainConfig): Cell {
         .storeAddress(config.adminAddress)
         .storeRef(config.jettonWalletGovernedCode)
         .storeRef(config.jettonWalletCode)
+        .storeRef(
+            beginCell()
+                .storeAddress(config.tradoorMasterAddress)
+                .storeAddress(config.stormVaultAddress)
+                .storeRef(
+                    beginCell()
+                        .storeAddress(config.usdtSlpJettonWallet)
+                        .storeAddress(config.usdtTlpJettonWallet)
+                        .endCell()
+                )
+                .endCell()
+        )
         .storeUint(config.rootPrice, 64)
         .endCell();
 }
@@ -55,7 +71,12 @@ export class Main implements Contract {
         await provider.internal(via, {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(999, 32).storeUint(queryId, 64).storeRef(newData).storeRef(newCode).endCell()
+            body: beginCell()
+                .storeUint(999, 32)
+                .storeUint(queryId, 64)
+                .storeRef(newData)
+                .storeRef(newCode)
+                .endCell()
         })
     }
 
@@ -81,6 +102,10 @@ export class Main implements Contract {
             usdtJettonWalletCode: result.readCell(),
             jettonWalletCode: result.readCell(),
             rootPrice: result.readBigNumber(),
+            tradoorMasterAddress: result.readAddress(),
+            stormVaultAddress: result.readAddress(),
+            usdtSlpJettonWallet: result.readAddress(),
+            usdtTlpJettonWallet: result.readAddress(),
         }
     }
 }
