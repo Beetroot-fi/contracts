@@ -6,6 +6,7 @@ import { JettonMinter } from "../wrappers/Stablecoin"
 import { opCodes } from '../helpers/conts';
 import { compile } from '@ton/blueprint';
 import { Main } from '../wrappers/Main';
+import { User } from '../wrappers/User';
 import '@ton/test-utils';
 
 describe('Main', () => {
@@ -20,9 +21,13 @@ describe('Main', () => {
     let main: SandboxContract<Main>;
     let usdtMaster: SandboxContract<JettonMinter>;
     let deployerUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
+    let mainUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
     let beetrootMaster: SandboxContract<JettonMaster>;
     let jettonWalletGovernedCode: Cell;
     let jettonWalletCode: Cell;
+    let userSc: SandboxContract<User>;
+    let tradoorUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
+    let stormUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
@@ -115,17 +120,12 @@ describe('Main', () => {
             jettonWalletGovernedCode: jettonWalletGovernedCode,
             jettonWalletCode: jettonWalletCode,
             rootPrice: 100n,
-            evaaMasterAddress: Address.parse('EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr'),
             tradoorMasterAddress: Address.parse('EQD_EzjJ9u0fpMJkoZBSv_ZNEMitAoYo9SsuD0s1ehIifnnn'),
             stormVaultAddress: Address.parse('EQAz6ehNfL7_8NI7OVh1Qg46HsuC4kFpK-icfqK9J3Frd6CJ'),
-            usdtSlpJettonWallet: Address.parse('EQCup4xxCulCcNwmOocM9HtDYPU8xe0449tQLp6a-5BLEegW'),
-            usdtTlpJettonWallet: Address.parse('EQAzLJFviFomBRyzoSHwDCvaRZM56xA982_khN8Lh7OThD9z'),
+            usdtSlpJettonWallet: Address.parse('EQCwg3I-PS4P3sqpL40Mt-booKgg2fQDASQds1KkLOOGq7GB'),
+            usdtTlpJettonWallet: Address.parse('EQB_cwuPrMaTLv5XCtqgLvDWBbT1U9uOnryyFWOJzE7Vxjqe'),
         }, code));
-    });
-
-    it('should deploy', async () => {
         const deployResult = await main.sendDeploy(deployer.getSender(), toNano('0.002'));
-
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: main.address,
@@ -133,5 +133,78 @@ describe('Main', () => {
             deploy: true,
             value: toNano('0.002'),
         })
+
+        // getting user sc
+        userSc = blockchain.openContract(User.createFromConfig({
+            adminAddress: deployer.address,
+            mainScAddress: main.address,
+        }, code));
+
+        // getting main usdt jetton wallet
+        mainUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
+            ownerAddress: main.address,
+            jettonMasterAddress: usdtMaster.address,
+        }, jettonWalletGovernedCode));
+
+        // getting protocols usdt jetton wallets
+        tradoorUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromAddress(Address.parse('EQD_EzjJ9u0fpMJkoZBSv_ZNEMitAoYo9SsuD0s1ehIifnnn')));
+        stormUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromAddress(Address.parse('EQAz6ehNfL7_8NI7OVh1Qg46HsuC4kFpK-icfqK9J3Frd6CJ')));
+    });
+
+    it('should deploy', async () => {
+
+    });
+
+    it('should receive USDT & send this to protocols', async () => {
+        const result = await deployerUsdtJettonWallet.sendTransfer(
+            deployer.getSender(),
+            toNano('0.92'),
+            BigInt(200 * 1e6),
+            main.address,
+            deployer.address,
+            null,
+            toNano('0.87'),
+            null,
+        );
+
+        // verify that the usdt has arrived
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: deployerUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: deployerUsdtJettonWallet.address,
+            to: mainUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: main.address,
+            success: true,
+            op: opCodes.transfer_notification,
+        });
+
+        // verify send usdt to protocols
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: mainUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: tradoorUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: stormUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
     });
 });
