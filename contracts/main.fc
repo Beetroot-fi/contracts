@@ -304,6 +304,28 @@ global slice usdt_tlp_jetton_wallet;
         burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 300000000, admin_address); ;; 0.3 ton
         return();
     }
+    if (op == op::succesful_withdraw) {
+        throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
+
+        int usdt_amount = in_msg_body~load_coins();
+        slice user_address = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+
+        slice usdt_jetton_wallet_address = get_jetton_wallet_governed_address(my_address(),usdt_jetton_master_address, jetton_wallet_governed_code);
+
+        send_jettons(
+            usdt_amount,
+            user_address,
+            query_id,
+            usdt_jetton_wallet_address,
+            begin_cell().end_cell(),
+            1,
+            50000000, ;; 0.05 ton
+            user_address
+        );
+        send_excesses(query_id, 300000000, user_address); ;; 0.3 ton
+        return ();
+    }
     if (op == op::upgrade_contract) {
         throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
         (cell new_data, cell new_code) = (in_msg_body~load_ref(), in_msg_body~load_ref());
