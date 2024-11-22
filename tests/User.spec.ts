@@ -117,7 +117,6 @@ describe('User', () => {
             jettonWalletGovernedCode: jettonWalletGovernedCode,
             jettonWalletCode: jettonWalletCode,
             rootPrice: 100n,
-            evaaMasterAddress: Address.parse('EQC8rUZqR_pWV1BylWUlPNBzyiTYVoBEmQkMIQDZXICfnuRr'),
             tradoorMasterAddress: Address.parse('EQD_EzjJ9u0fpMJkoZBSv_ZNEMitAoYo9SsuD0s1ehIifnnn'),
             stormVaultAddress: Address.parse('EQAz6ehNfL7_8NI7OVh1Qg46HsuC4kFpK-icfqK9J3Frd6CJ'),
             usdtSlpJettonWallet: Address.parse('EQCup4xxCulCcNwmOocM9HtDYPU8xe0449tQLp6a-5BLEegW'),
@@ -127,8 +126,6 @@ describe('User', () => {
         user = blockchain.openContract(User.createFromConfig({
             adminAddress: deployer.address,
             mainScAddress: main.address,
-            rootMasterAddress: beetrootMaster.address,
-            jettonWalletCode: jettonWalletCode,
         }, code));
     });
 
