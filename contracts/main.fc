@@ -304,7 +304,7 @@ global slice usdt_tlp_jetton_wallet;
         burn_jettons(usdt_slp_amount, usdt_slp_jetton_wallet, query_id, 300000000, admin_address); ;; 0.3 ton
         return();
     }
-    if (op == op::succesful_withdraw) {
+    if (op == op::successful_withdraw) {
         throw_unless(err::not_admin, equal_slices(sender_address, admin_address));
 
         int usdt_amount = in_msg_body~load_coins();
