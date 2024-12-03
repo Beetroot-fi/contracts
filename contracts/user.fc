@@ -5,7 +5,6 @@
 #include "imports/stdlib.fc";
 #include "imports/op-codes.fc";
 #include "imports/utils.fc";
-#include "imports/jetton-wallet-utils.fc";
 
 global slice admin_address;
 global slice main_sc_address;
