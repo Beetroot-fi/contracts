@@ -2,10 +2,10 @@
 
 #pragma version >=0.4.3;
 
-#include "imports/stdlib.fc";
+#include "../../imports/stdlib.fc";
 #include "imports/op-codes.fc";
 #include "imports/workchain.fc";
-#include "imports/jetton-wallet-governed-utils.fc";
+#include "imports/jetton-utils.fc";
 #include "imports/gas.fc";
 
 ;; storage#_ total_supply:Coins admin_address:MsgAddress next_admin_address:MsgAddress jetton_wallet_code:^Cell metadata_uri:^Cell = Storage;

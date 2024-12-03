@@ -12,9 +12,9 @@ This is suitable for most tokens, if you need tokens transferable between workch
 
 -}
 
-#include "imports/stdlib.fc";
-#include "imports/jetton-wallet-op-codes.fc";
-#include "imports/jetton-wallet-utils.fc";
+#include "../../imports/stdlib.fc";
+#include "imports/op-codes.fc";
+#include "imports/jetton-utils.fc";
 #include "imports/params.fc";
 
 
