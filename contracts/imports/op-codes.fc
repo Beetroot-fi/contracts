@@ -1,10 +1,8 @@
-;; custom
-
 const op::withdraw = 555;
 const op::withdraw_internal = 556;
 const op::withdraw_notification = 557;
 const op::mint_jetton = 21;
-const op::succesful_withdraw = 489;
+const op::successful_withdraw = 489;
 const op::deposit = 20;
 const op::upgrade_contract = 999;
 const op::update_root_price = 344;
@@ -22,41 +20,6 @@ const err::not_admin = 534;
 const err::unknown_jetton = 533;
 const err::unknown_op_code = 777;
 const err::unknown_address = 567;
+const err::not_enough_gas = 568;
 
-;; common
-
-const op::transfer = 0xf8a7ea5;
 const op::transfer_notification = 0x7362d09c;
-const op::internal_transfer = 0x178d4519;
-const op::excesses = 0xd53276db;
-const op::burn = 0x595f07bc;
-const op::burn_notification = 0x7bdd97de;
-
-const op::provide_wallet_address = 0x2c76b973;
-const op::take_wallet_address = 0xd1735400;
-
-const op::top_up = 0xd372158c;
-
-const error::invalid_op = 72;
-const error::wrong_op = 0xffff;
-const error::not_owner = 73;
-const error::not_valid_wallet = 74;
-const error::wrong_workchain = 333;
-
-;; jetton-minter
-
-const op::mint = 0x642b7d07;
-const op::change_admin = 0x6501f354;
-const op::claim_admin = 0xfb88e119;
-const op::upgrade = 0x2508d66a;
-const op::call_to = 0x235caf52;
-const op::change_metadata_uri = 0xcb862902;
-
-;; jetton-wallet
-
-const op::set_status = 0xeed236d3;
-
-const error::contract_locked = 45;
-const error::balance_error = 47;
-const error::not_enough_gas = 48;
-const error::invalid_message = 49;

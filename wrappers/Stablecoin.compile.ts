@@ -2,5 +2,5 @@ import { CompilerConfig } from '@ton/blueprint';
 
 export const compile: CompilerConfig = {
     lang: 'func',
-    targets: ['contracts/stablecoin.fc'],
+    targets: ['contracts/mocks/stablecoin/stablecoin.fc'],
 };
