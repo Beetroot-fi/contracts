@@ -1,0 +1,15 @@
+#include "stdlib.fc";
+
+const MIN_STORAGE_DURATION = 60 * 60 * 24 * 30; ;; 1 month
+
+const MAIN_BITS = 21873;
+const MAIN_CELLS = 53;
+
+const ONE_TON = 1000000000;
+
+const DEPOSIT_GAS_AMOUNT = 650000000;
+const WITHDRAW_GAS_AMOUNT = ONE_TON;
+
+int calculate_main_min_storage_fee() inline {
+    return get_storage_fee(BASECHAIN, MIN_STORAGE_DURATION, MAIN_BITS, MAIN_CELLS);
+}
