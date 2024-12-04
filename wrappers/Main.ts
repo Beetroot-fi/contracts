@@ -80,6 +80,45 @@ export class Main implements Contract {
         })
     }
 
+    async sendMintUserInternal(provider: ContractProvider, via: Sender, value: bigint, opts: {
+        queryId: bigint,
+        totalDepositAmount: bigint,
+        usdtSlpAmount: bigint,
+        usdtTlpAmount: bigint,
+        rootAmount: bigint,
+        adminAddress: Address
+    }) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(558, 32)
+                .storeUint(opts.queryId, 64)
+                .storeCoins(opts.usdtTlpAmount)
+                .storeCoins(opts.usdtSlpAmount)
+                .storeCoins(opts.totalDepositAmount)
+                .storeAddress(opts.adminAddress)
+                .endCell(),
+        });
+    }
+
+    async sendSuccessfulWithdraw(provier: ContractProvider, via: Sender, value: bigint, opts: {
+        queryId: bigint,
+        usdtAmount: bigint,
+        adminAddress: Address
+    }) {
+        await provier.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(489, 32)
+                .storeUint(0, 64)
+                .storeCoins(opts.usdtAmount)
+                .storeAddress(opts.adminAddress)
+                .endCell(),
+        });
+    }
+
     async getUserScAddress(provider: ContractProvider, ownerAddress: Address): Promise<Address> {
         const result = (await provider.get('get_user_sc_address', [
             {
