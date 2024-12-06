@@ -1,13 +1,22 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { JettonWalletGoverned } from '../wrappers/JettonWalletGoverned';
-import { Cell, toNano, beginCell, Dictionary, Address } from '@ton/core';
+import { Blockchain, RemoteBlockchainStorage, SandboxContract, wrapTonClient4ForRemote } from '@ton/sandbox';
+import { Cell, toNano, beginCell, Dictionary } from '@ton/core';
+import { getHttpV4Endpoint } from '@orbs-network/ton-access';
 import { JettonMaster } from '../wrappers/JettonMaster';
 import { JettonMinter } from '../wrappers/Stablecoin';
-import { opCodes } from '../helpers/conts';
+import {
+    errCodes,
+    MAIN_USDT_SLP_JETTON_WALLET,
+    MAIN_USDT_TLP_JETTON_WALLET,
+    opCodes, STORM_VAULT_ADDRESS,
+    TRADOOR_MASTER_ADDRESS,
+    USDT_JETTON_MINTER_ADDRESS
+} from '../helpers/conts';
 import { compile } from '@ton/blueprint';
 import { User } from '../wrappers/User';
 import { Main } from '../wrappers/Main';
+import { TonClient4, WalletContractV4 } from '@ton/ton';
 import '@ton/test-utils';
+import { KeyPair, mnemonicToWalletKey } from '@ton/crypto';
 
 describe('User', () => {
     let code: Cell;
@@ -17,19 +26,23 @@ describe('User', () => {
     });
 
     let blockchain: Blockchain;
-    let deployer: SandboxContract<TreasuryContract>;
-    let user: SandboxContract<User>;
+    let admin: SandboxContract<WalletContractV4>;
+    let adminUserSc: SandboxContract<User>;
     let main: SandboxContract<Main>;
+    let keyPair: KeyPair;
     let usdtMaster: SandboxContract<JettonMinter>;
     let beetrootMaster: SandboxContract<JettonMaster>;
     let jettonWalletGovernedCode: Cell;
     let jettonWalletCode: Cell;
-    let deployerUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
 
     beforeEach(async () => {
-        blockchain = await Blockchain.create();
-
-        deployer = await blockchain.treasury('deployer');
+        blockchain = await Blockchain.create({
+            storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(new TonClient4({
+                endpoint: await getHttpV4Endpoint({
+                    network: 'mainnet'
+                }),
+            })))
+        })
 
         // jetton wallet governed
         const jettonWalletCodeGovernedRaw = await compile('JettonWalletGoverned');
@@ -46,53 +59,13 @@ describe('User', () => {
         jettonWalletCode = await compile('JettonWallet');
 
         // deploy usdt master
-        usdtMaster = blockchain.openContract(JettonMinter.createFromConfig({
-            admin: deployer.address,
-            wallet_code: jettonWalletGovernedCode,
-            jetton_content: { uri: "https://raw.githubusercontent.com/welaskez/testnet-usdt-metadata/refs/heads/main/metadata.json" }
-        }, await compile('Stablecoin')));
+        usdtMaster = blockchain.openContract(JettonMinter.createFromAddress(USDT_JETTON_MINTER_ADDRESS));
+        keyPair = await mnemonicToWalletKey(process.env.MNEMONICS!.split(' '))
+        admin = blockchain.openContract(WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey, walletId: 698983191 }))
 
-        const deployResultUsdt = await usdtMaster.sendDeploy(deployer.getSender(), toNano('1.5'));
-        expect(deployResultUsdt.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: usdtMaster.address,
-            deploy: true,
-            success: true,
-        });
-
-        // mint usdt for deployer
-        const mintUsdtForDepolyerResult = await usdtMaster.sendMint(
-            deployer.getSender(),
-            deployer.address,
-            toNano('3000'),
-        );
-        expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: usdtMaster.address,
-            success: true,
-            op: opCodes.mint_usdt,
-        });
-        deployerUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
-            ownerAddress: deployer.address,
-            jettonMasterAddress: usdtMaster.address,
-        }, jettonWalletGovernedCode));
-        expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
-            from: usdtMaster.address,
-            to: deployerUsdtJettonWallet.address,
-            deploy: true,
-            success: true,
-        });
-        expect(mintUsdtForDepolyerResult.transactions).toHaveTransaction({
-            from: deployerUsdtJettonWallet.address,
-            to: deployer.address,
-            success: true,
-            op: opCodes.transfer_notification,
-        });
-
-        // deploy beetroot master
         beetrootMaster = blockchain.openContract(JettonMaster.createFromConfig({
-            totalSupply: toNano('1000000000'),
-            adminAddress: deployer.address,
+            totalSupply: 1_000_000_000n,
+            adminAddress: admin.address,
             content: beginCell()
                 .storeUint(0x01, 8)
                 .storeStringTail('https://raw.githubusercontent.com/welaskez/test-jetton-metadata/refs/heads/main/metadata.json')
@@ -100,43 +73,99 @@ describe('User', () => {
             jettonWalletCode: jettonWalletCode,
         }, await compile('JettonMaster')));
 
-        const deployResultJettonMaster = await beetrootMaster.sendDeploy(deployer.getSender(), toNano('0.05'));
-        expect(deployResultJettonMaster.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: beetrootMaster.address,
-            deploy: true,
-            success: true,
-        });
-
         // deploy main sc
         main = blockchain.openContract(Main.createFromConfig({
             usdtJettonMasterAddress: usdtMaster.address,
             rootMasterAddress: beetrootMaster.address,
             userScCode: await compile('User'),
-            adminAddress: deployer.address,
+            adminAddress: admin.address,
             jettonWalletGovernedCode: jettonWalletGovernedCode,
             jettonWalletCode: jettonWalletCode,
-            rootPrice: 100n,
-            tradoorMasterAddress: Address.parse('EQD_EzjJ9u0fpMJkoZBSv_ZNEMitAoYo9SsuD0s1ehIifnnn'),
-            stormVaultAddress: Address.parse('EQAz6ehNfL7_8NI7OVh1Qg46HsuC4kFpK-icfqK9J3Frd6CJ'),
-            usdtSlpJettonWallet: Address.parse('EQCup4xxCulCcNwmOocM9HtDYPU8xe0449tQLp6a-5BLEegW'),
-            usdtTlpJettonWallet: Address.parse('EQAzLJFviFomBRyzoSHwDCvaRZM56xA982_khN8Lh7OThD9z'),
+            rootPrice: 10000n,
+            tradoorMasterAddress: TRADOOR_MASTER_ADDRESS,
+            stormVaultAddress: STORM_VAULT_ADDRESS,
+            usdtSlpJettonWallet: MAIN_USDT_SLP_JETTON_WALLET,
+            usdtTlpJettonWallet: MAIN_USDT_TLP_JETTON_WALLET,
         }, code));
+        const deployResult = await main.sendDeploy((await admin.sender(keyPair.secretKey)).result, toNano('0.002'));
+        expect(deployResult.transactions).toHaveTransaction({
+            from: admin.address,
+            to: main.address,
+            success: true,
+            deploy: true,
+            value: toNano('0.002'),
+        });
 
-        user = blockchain.openContract(User.createFromConfig({
-            adminAddress: deployer.address,
+        // change beetroot master owner
+        const changeBeetrootMasterOwnerResult = await beetrootMaster.sendChangeAdmin((await admin.sender(keyPair.secretKey)).result, toNano('0.05'), {
+            queryId: 0n,
+            newAdminAddress: main.address
+        });
+        expect(changeBeetrootMasterOwnerResult.transactions).toHaveTransaction({
+            from: admin.address,
+            to: beetrootMaster.address,
+            success: true,
+            op: opCodes.change_admin,
+        });
+        expect((await beetrootMaster.getJettonData()).adminAddress).toEqualAddress(main.address);
+
+        // getting deployer sc
+        adminUserSc = blockchain.openContract(User.createFromConfig({
+            adminAddress: admin.address,
             mainScAddress: main.address,
-        }, code));
+        }, await compile('User')));
     });
 
-    it('should deploy', async () => {
-        const deployResult = await user.sendDeploy(deployer.getSender(), toNano('0.05'));
+    it('should not receive deposit from not main', async () => {
+        const result = await main.sendDeposit(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.5'),
+            {
+                queryId: 0n,
+                totalDepositAmount: 100n,
+                usdtSlpAmount: 100n,
+                usdtTlpAmount: 100n,
+                rootAmount: 10n,
+            }
+        )
+        expect(result.transactions).toHaveTransaction({
+            from: admin.address,
+            to: adminUserSc.address,
+            success: false,
+            exitCode: errCodes.not_parent,
+        })
+    });
 
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: user.address,
-            deploy: true,
-            success: true,
+    it('should not receive withdraw internal not from main', async () => {
+        const result = await main.sendWithdrawInternal(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.5'),
+            {
+                queryId: 0n,
+                jettonAmount: 100n,
+            }
+        )
+        expect(result.transactions).toHaveTransaction({
+            from: admin.address,
+            to: adminUserSc.address,
+            success: false,
+            exitCode: errCodes.not_parent,
+        })
+    });
+
+    it('should throw error if wrong op code', async () => {
+        const user = await blockchain.treasury('user');
+
+        const result = await user.send({
+            to: main.address,
+            value: toNano('0.05'),
+            body: beginCell().storeUint(123, 32).storeUint(0, 64).endCell(),
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: user.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.unknown_op_code,
         });
     });
 });
