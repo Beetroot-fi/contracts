@@ -22,6 +22,8 @@ export const opCodes = {
     burn: 1499400124,
     burn_notification: 2078119902,
     withdraw_internal: 556,
+    withdraw_notification: 557,
+    successful_withdraw: 489,
     update_root_price: 344,
     upgrade_contract: 999,
 }
@@ -30,6 +32,7 @@ export const errCodes = {
     not_parent: 544,
     not_child: 543,
     not_admin: 534,
+    not_enough_gas: 568,
     unknown_token: 533,
     unknown_op_code: 777,
 }
