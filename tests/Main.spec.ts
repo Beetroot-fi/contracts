@@ -1,7 +1,7 @@
-import { Blockchain, RemoteBlockchainStorage, SandboxContract, TreasuryContract, wrapTonClient4ForRemote } from '@ton/sandbox';
+import { Blockchain, RemoteBlockchainStorage, SandboxContract, wrapTonClient4ForRemote } from '@ton/sandbox';
 import { JettonWalletGoverned } from '../wrappers/JettonWalletGoverned';
 import { getHttpV4Endpoint } from '@orbs-network/ton-access';
-import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core';
+import { beginCell, Cell, Dictionary, toNano } from '@ton/core';
 import { compile } from '@ton/blueprint';
 import { Main } from '../wrappers/Main';
 import { User } from '../wrappers/User';
@@ -17,9 +17,9 @@ import {
     errCodes,
     opCodes,
     USDT_JETTON_MINTER_ADDRESS,
-    ADMIN_ADDRESS,
     STORM_USDT_JETTON_WALLET,
     BEETROOT_JETTON_MINTER_ADDRESS,
+    ADMIN_ADDRESS,
 } from '../helpers/conts';
 import '@ton/test-utils';
 import { JettonMinter } from '../wrappers/Stablecoin';
@@ -34,7 +34,6 @@ describe('Main', () => {
     });
 
     let blockchain: Blockchain;
-    let deployer: SandboxContract<TreasuryContract>;
     let main: SandboxContract<Main>;
     let mainUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
     let mainBeetrootJettonWallet: SandboxContract<JettonWallet>;
@@ -42,9 +41,9 @@ describe('Main', () => {
     let admin: SandboxContract<WalletContractV4>;
     let keyPair: KeyPair;
     let jettonWalletCode: Cell;
-    let deployerUserSc: SandboxContract<User>;
-    let deployerUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
-    let deployerBeetrootJettonWallet: SandboxContract<JettonWallet>;
+    let adminUserSc: SandboxContract<User>;
+    let adminUsdtJettonWallet: SandboxContract<JettonWalletGoverned>;
+    let adminBeetrootJettonWallet: SandboxContract<JettonWallet>;
     let usdtMaster: SandboxContract<JettonMinter>;
     let beetrootMaster: SandboxContract<JettonMaster>;
 
@@ -53,11 +52,9 @@ describe('Main', () => {
             storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(new TonClient4({
                 endpoint: await getHttpV4Endpoint({
                     network: 'mainnet'
-                })
+                }),
             })))
-        });
-
-        deployer = await blockchain.treasury('treasury')
+        })
 
         // jetton wallet governed
         const jettonWalletCodeGovernedRaw = await compile('JettonWalletGoverned');
@@ -79,7 +76,7 @@ describe('Main', () => {
         admin = blockchain.openContract(WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey, walletId: 698983191 }))
 
         // getting deployer usdt jetton wallet
-        deployerUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
+        adminUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromConfig({
             ownerAddress: admin.address,
             jettonMasterAddress: usdtMaster.address,
         }, jettonWalletGovernedCode));
@@ -102,7 +99,7 @@ describe('Main', () => {
             adminAddress: admin.address,
             jettonWalletGovernedCode: jettonWalletGovernedCode,
             jettonWalletCode: jettonWalletCode,
-            rootPrice: 10285n,
+            rootPrice: 10000n,
             tradoorMasterAddress: TRADOOR_MASTER_ADDRESS,
             stormVaultAddress: STORM_VAULT_ADDRESS,
             usdtSlpJettonWallet: MAIN_USDT_SLP_JETTON_WALLET,
@@ -134,21 +131,26 @@ describe('Main', () => {
         expect((await beetrootMaster.getJettonData()).adminAddress).toEqualAddress(main.address);
 
         // getting deployer sc
-        deployerUserSc = blockchain.openContract(User.createFromAddress(await main.getUserScAddress(admin.address)));
+        adminUserSc = blockchain.openContract(User.createFromAddress(await main.getUserScAddress(admin.address)));
         // getting deployer beetroot jetton wallet
-        deployerBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(
-            await beetrootMaster.getWalletAddress(admin.address))
-        );
+        adminBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(
+            await beetrootMaster.getWalletAddress(admin.address)
+        ));
 
         // getting main usdt jetton wallet 
         mainUsdtJettonWallet = blockchain.openContract(JettonWalletGoverned.createFromAddress(
             await usdtMaster.getWalletAddress(main.address)
         ));
+
+        // getting main beetroot jetton wallet
+        mainBeetrootJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(
+            await beetrootMaster.getWalletAddress(main.address)
+        ));
     });
 
-    it('should receive USDT & send this to protocols', async () => {
-        const adminBalanceBefore = await deployerUsdtJettonWallet.getJettonBalance();
-        const result = await deployerUsdtJettonWallet.sendTransfer(
+    it('should receive USDT, send this to protocols * deploy user sc', async () => {
+        const adminBalanceBefore = await adminUsdtJettonWallet.getJettonBalance();
+        const result = await adminUsdtJettonWallet.sendTransfer(
             (await admin.sender(keyPair.secretKey)).result,
             toNano('0.7'),
             BigInt(201 * 1e6),
@@ -162,12 +164,12 @@ describe('Main', () => {
         // receive usdt
         expect(result.transactions).toHaveTransaction({
             from: admin.address,
-            to: deployerUsdtJettonWallet.address,
+            to: adminUsdtJettonWallet.address,
             success: true,
             op: opCodes.transfer,
         });
         expect(result.transactions).toHaveTransaction({
-            from: deployerUsdtJettonWallet.address,
+            from: adminUsdtJettonWallet.address,
             to: mainUsdtJettonWallet.address,
             success: true,
             op: opCodes.internal_transfer,
@@ -191,12 +193,12 @@ describe('Main', () => {
         });
         expect(result.transactions).toHaveTransaction({
             from: beetrootMaster.address,
-            to: deployerBeetrootJettonWallet.address,
+            to: adminBeetrootJettonWallet.address,
             success: true,
             deploy: true,
         });
 
-        const deployerRootBalance = (await deployerBeetrootJettonWallet.getWalletData()).balance
+        const deployerRootBalance = (await adminBeetrootJettonWallet.getWalletData()).balance
         expect(deployerRootBalance).toEqual(expectedRootMintValue);
 
         // check send $USDT to protocols
@@ -247,12 +249,12 @@ describe('Main', () => {
         });
         expect(result.transactions).toHaveTransaction({
             from: mainUsdtJettonWallet.address,
-            to: deployerUsdtJettonWallet.address,
+            to: adminUsdtJettonWallet.address,
             success: true,
             op: opCodes.internal_transfer,
         });
 
-        const adminBalanceAfter = await deployerUsdtJettonWallet.getJettonBalance();
+        const adminBalanceAfter = await adminUsdtJettonWallet.getJettonBalance();
         expect(adminBalanceAfter).toEqual(adminBalanceBefore - BigInt(200 * 1e6))
 
         // if we successful receive lp tokens 
@@ -275,16 +277,308 @@ describe('Main', () => {
         });
         expect(mintUserInternalResult.transactions).toHaveTransaction({
             from: main.address,
-            to: deployerUserSc.address,
+            to: adminUserSc.address,
             success: true,
             deploy: true,
             op: opCodes.deposit,
         });
-        const deployerUserScData = await deployerUserSc.getUserData();
+        const deployerUserScData = await adminUserSc.getUserData();
         expect(deployerUserScData.adminAddress).toEqualAddress(admin.address);
         expect(deployerUserScData.mainScAddress).toEqualAddress(main.address);
         expect(deployerUserScData.rootAmount).toEqual(expectedRootMintValue);
         expect(deployerUserScData.totalDepositAmount).toEqual(BigInt(200 * 1e6));
+    });
+
+    it('should withdraw funds from protocols, burn root, update user sc & send usdt to user', async () => {
+        // init
+        await adminUsdtJettonWallet.sendTransfer(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.7'),
+            BigInt(201 * 1e6),
+            main.address,
+            admin.address,
+            null,
+            toNano("0.65"),
+            null,
+        );
+
+        const result = await adminBeetrootJettonWallet.sendTransfer(
+            (await admin.sender(keyPair.secretKey)).result,
+            {
+                value: toNano('1'),
+                toAddress: main.address,
+                queryId: 0,
+                fwdAmount: toNano('0.85'),
+                jettonAmount: toNano('2'),
+                forwardPayload: null,
+            }
+        )
+
+        // send root
+        expect(result.transactions).toHaveTransaction({
+            from: admin.address,
+            to: adminBeetrootJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: adminBeetrootJettonWallet.address,
+            to: mainBeetrootJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainBeetrootJettonWallet.address,
+            to: main.address,
+            success: true,
+            op: opCodes.transfer_notification,
+        });
+
+        // burn root
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: mainBeetrootJettonWallet.address,
+            success: true,
+            op: opCodes.burn,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainBeetrootJettonWallet.address,
+            to: beetrootMaster.address,
+            success: true,
+            op: opCodes.burn_notification,
+        });
+        expect((await mainBeetrootJettonWallet.getWalletData()).balance).toEqual(0n);
+
+        // send withdraw internal to user sc
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: adminUserSc.address,
+            success: true,
+            op: opCodes.withdraw_internal,
+        });
+
+        // receive withdraw notification from user sc 
+        expect(result.transactions).toHaveTransaction({
+            from: adminUserSc.address,
+            to: main.address,
+            success: true,
+            op: opCodes.withdraw_notification,
+        });
+
+        // withdraw funds from protocols
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: MAIN_USDT_SLP_JETTON_WALLET,
+            success: true,
+            op: opCodes.burn,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: MAIN_USDT_TLP_JETTON_WALLET,
+            success: true,
+            op: opCodes.transfer
+        });
+
+        // receive usdt
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: main.address,
+            success: true,
+            op: opCodes.transfer_notification
+        });
+
+        // send successful withdraw 
+        const successfulWithdrawResult = await main.sendSuccessfulWithdraw(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.012'),
+            {
+                queryId: 0n,
+                usdtAmount: BigInt(200 * 1e6),
+                adminAddress: admin.address,
+            }
+        );
+        expect(successfulWithdrawResult.transactions).toHaveTransaction({
+            from: admin.address,
+            to: main.address,
+            success: true,
+            op: opCodes.successful_withdraw,
+        });
+
+        // send usdt to user
+        expect(result.transactions).toHaveTransaction({
+            from: main.address,
+            to: mainUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: adminUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
+    });
+
+    it('should throw error if not root or usdt received', async () => {
+        const fakeJetton = blockchain.openContract(JettonMaster.createFromConfig({
+            totalSupply: 0n,
+            adminAddress: main.address,
+            content: beginCell().storeUint(0x01, 8).storeStringTail('some_metadata_link').endCell(),
+            jettonWalletCode: jettonWalletCode
+        }, await compile('JettonMaster')));
+
+        await fakeJetton.sendMint(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.05'),
+            {
+                queryId: 0n,
+                toAddress: admin.address,
+                jettonAmount: toNano('1')
+            }
+        )
+
+        const adminFakeJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(
+            await fakeJetton.getWalletAddress(admin.address)
+        ));
+
+        const mainFakeJettonWallet = blockchain.openContract(JettonWallet.createFromAddress(
+            await fakeJetton.getWalletAddress(main.address)
+        ))
+
+        const result = await adminFakeJettonWallet.sendTransfer(
+            (await admin.sender(keyPair.secretKey)).result,
+            {
+                value: toNano('1'),
+                toAddress: main.address,
+                queryId: 0,
+                fwdAmount: toNano('0.85'),
+                jettonAmount: toNano('1'),
+                forwardPayload: null,
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: admin.address,
+            to: adminFakeJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: adminFakeJettonWallet.address,
+            to: mainFakeJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainFakeJettonWallet.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.unknown_token,
+            op: opCodes.transfer_notification,
+        });
+    });
+
+    it('should throw error if wrong op code', async () => {
+        const user = await blockchain.treasury('user');
+
+        const result = await user.send({
+            to: main.address,
+            value: toNano('0.05'),
+            body: beginCell().storeUint(123, 32).storeUint(0, 64).endCell(),
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: user.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.unknown_op_code,
+        });
+    });
+
+    it('should not upgrade contract if not admin', async () => {
+        const user = await blockchain.treasury('user');
+
+        const result = await main.sendUpgradeContract(
+            user.getSender(),
+            0n,
+            toNano('0.05'),
+            beginCell().endCell(),
+            beginCell().endCell(),
+        )
+        expect(result.transactions).toHaveTransaction({
+            from: user.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.not_admin,
+        });
+    });
+
+    it('should not update root price if not admin', async () => {
+        const user = await blockchain.treasury('user');
+
+        const result = await main.sendUpdateRootPrice(
+            user.getSender(),
+            toNano('0.05'),
+            0n,
+            101n,
+        )
+        expect(result.transactions).toHaveTransaction({
+            from: user.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.not_admin,
+        });
+    });
+
+    it('should throw error if not enough tons to gas', async () => {
+        const result = await adminUsdtJettonWallet.sendTransfer(
+            (await admin.sender(keyPair.secretKey)).result,
+            toNano('0.6'),
+            toNano('100'),
+            main.address,
+            admin.address,
+            null,
+            toNano('0.5'),
+            null,
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: admin.address,
+            to: adminUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.transfer,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: adminUsdtJettonWallet.address,
+            to: mainUsdtJettonWallet.address,
+            success: true,
+            op: opCodes.internal_transfer,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: mainUsdtJettonWallet.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.not_enough_gas,
+        });
+    });
+
+    it('should throw error if not user contract request withdraw', async () => {
+        const user = await blockchain.treasury('user');
+
+        const result = await user.send({
+            to: main.address,
+            value: toNano('0.1'),
+            body: beginCell()
+                .storeUint(opCodes.withdraw_notification, 32)
+                .storeUint(0, 64)
+                .storeAddress(user.address)
+                .storeCoins(0)
+                .storeCoins(0)
+                .endCell()
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: user.address,
+            to: main.address,
+            success: false,
+            exitCode: errCodes.not_child,
+        });
     });
 
     it('should upgrade contract', async () => {

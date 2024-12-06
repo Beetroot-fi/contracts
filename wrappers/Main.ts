@@ -102,12 +102,12 @@ export class Main implements Contract {
         });
     }
 
-    async sendSuccessfulWithdraw(provier: ContractProvider, via: Sender, value: bigint, opts: {
+    async sendSuccessfulWithdraw(provdier: ContractProvider, via: Sender, value: bigint, opts: {
         queryId: bigint,
         usdtAmount: bigint,
         adminAddress: Address
     }) {
-        await provier.internal(via, {
+        await provdier.internal(via, {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -117,6 +117,42 @@ export class Main implements Contract {
                 .storeAddress(opts.adminAddress)
                 .endCell(),
         });
+    }
+
+    async sendDeposit(provider: ContractProvider, via: Sender, value: bigint, opts: {
+        queryId: bigint,
+        totalDepositAmount: bigint,
+        usdtSlpAmount: bigint,
+        usdtTlpAmount: bigint,
+        rootAmount: bigint,
+    }) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(20, 32)
+                .storeUint(opts.queryId, 64)
+                .storeCoins(opts.totalDepositAmount)
+                .storeCoins(opts.usdtSlpAmount)
+                .storeCoins(opts.usdtTlpAmount)
+                .storeCoins(opts.rootAmount)
+                .endCell()
+        })
+    }
+
+    async sendWithdrawInternal(provider: ContractProvider, via: Sender, value: bigint, opts: {
+        queryId: bigint,
+        jettonAmount: bigint
+    }) {
+        await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(556, 32)
+                .storeUint(opts.queryId, 64)
+                .storeCoins(opts.jettonAmount)
+                .endCell()
+        })
     }
 
     async getUserScAddress(provider: ContractProvider, ownerAddress: Address): Promise<Address> {

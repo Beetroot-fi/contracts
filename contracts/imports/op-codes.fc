@@ -19,7 +19,6 @@ const err::not_child = 543;
 const err::not_admin = 534;
 const err::unknown_jetton = 533;
 const err::unknown_op_code = 777;
-const err::unknown_address = 567;
 const err::not_enough_gas = 568;
 
 const op::transfer_notification = 0x7362d09c;
